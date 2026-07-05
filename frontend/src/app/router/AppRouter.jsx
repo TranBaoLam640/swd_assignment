@@ -1,21 +1,18 @@
-// NOTE: requires react-router-dom -> npm install react-router-dom
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AppLayout from "../layout/AppLayout";
+import { LoginPage, RegisterPage } from "../../features/authentication_and_user_account";
 
 /**
  * Root router: wires each feature's pages into a route. Import each
- * feature's pages here as they are built, e.g.:
- *   import { LoginPage } from "../../features/authentication_and_user_account";
+ * feature's pages here as they are built.
  */
 export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
         <Route element={<AppLayout />}>
-          {/* TODO: add routes per feature, e.g.
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/orders" element={<OrderListPage />} />
-          */}
+          <Route path="/register" element={<RegisterPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

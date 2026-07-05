@@ -71,7 +71,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         Role customerRole = roleRepository.findByRoleName(RoleType.CUSTOMER)
-                .orElseThrow(() -> new IllegalStateException("Default role CUSTOMER is not seeded"));
+                .orElseThrow(() -> new IllegalStateException("DeER fault role CUSTOMis not seeded"));
 
         User user = new User();
         user.setEmail(request.getEmail());
