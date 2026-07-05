@@ -55,8 +55,17 @@ public class SecurityConfig {
                     .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                     .accessDeniedHandler(jwtAccessDeniedHandler))
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/v1/auth/**").permitAll()
+                    // --- Public, không cần token ---
+                    .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()
+
+                    // --- Riêng theo từng role, phân biệt bằng path prefix ---
+                    .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                    .requestMatchers("/api/v1/manager/**").hasRole("MANAGER")
+                    .requestMatchers("/api/v1/shipper/**").hasRole("SHIPPER")
+                    .requestMatchers("/api/v1/customer/**").hasRole("CUSTOMER")
+
+                    // --- Chung, chỉ cần đăng nhập (bất kỳ role nào) ---
                     .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
