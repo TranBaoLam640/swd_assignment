@@ -1,6 +1,7 @@
 // NOTE: requires react-router-dom -> npm install react-router-dom
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AppLayout from "../layout/AppLayout";
+import ProductListPage from "../../features/order_management_module/ProductListPage";
 
 /**
  * Root router: wires each feature's pages into a route. Import each
@@ -12,10 +13,10 @@ export default function AppRouter() {
     <BrowserRouter>
       <Routes>
         <Route element={<AppLayout />}>
-          {/* TODO: add routes per feature, e.g.
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/orders" element={<OrderListPage />} />
-          */}
+            <Route
+                path="/"
+                element={<ProductListPage/>}
+            />
         </Route>
       </Routes>
     </BrowserRouter>

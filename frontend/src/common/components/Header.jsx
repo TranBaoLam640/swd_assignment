@@ -1,3 +1,4 @@
+import { Form, Badge, NavDropdown} from "react-bootstrap";
 function Header({
   search,
   categories,
@@ -35,3 +36,5 @@ function Header({
     </>
   );
 }
+
+export default Header;
