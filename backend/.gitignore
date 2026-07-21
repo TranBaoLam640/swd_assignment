@@ -36,3 +36,8 @@ build/
 application-local.yml
 application-*.yml
 !application.yml
+# The project actually uses .yaml (not .yml) everywhere — the rules above
+# alone would NOT catch application-local.yaml, so mirror them here too.
+application-local.yaml
+application-*.yaml
+!application.yaml

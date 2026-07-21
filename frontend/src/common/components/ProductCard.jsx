@@ -1,16 +1,8 @@
-function ProductCard({ product }) {
-  return (
-    <div>
-      <img
-        src={product.thumbnail}
-        alt={product.title}
-      />
-
-      <h4>{product.title}</h4>
-
-      <p>${product.price}</p>
-    </div>
-  );
-}
-
-export default ProductCard;
+/**
+ * Not shared by 2+ features yet — the customer storefront renders its
+ * product cards inline inside
+ * `features/product_management_module/pages/ProductListPage.jsx` (the
+ * manager catalog uses a table instead, see ManagerProductListPage). Move
+ * a real ProductCard component here if a second feature ends up needing
+ * the exact same card markup.
+ */

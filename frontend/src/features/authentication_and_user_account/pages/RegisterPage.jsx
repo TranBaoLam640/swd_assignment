@@ -3,9 +3,24 @@ import { Link } from "react-router-dom";
 import { Container, Card, Form, Button, Alert, Spinner } from "react-bootstrap";
 import { register } from "../services/authService";
 
+const ROLE_OPTIONS = [
+  { value: "CUSTOMER", label: "Khách hàng — mua sắm trên FreshMart" },
+  { value: "MANAGER", label: "Quản lý — tạo và quản lý sản phẩm/tồn kho" },
+  { value: "SHIPPER", label: "Người giao hàng" },
+];
+
 /**
  * Register page — controlled form, calls authService.register() against
  * POST /api/v1/auth/register.
+ *
+ * Includes a role selector (CUSTOMER/MANAGER/SHIPPER) so demo/test accounts
+ * for any of these roles can be created without a DB admin. ADMIN is
+ * intentionally not offered here — the backend rejects it even if sent.
+ *
+ * Also includes a "Xác nhận mật khẩu" field (UC02 - Sign Up). The match is
+ * checked client-side for instant feedback AND server-side in
+ * AuthServiceImpl.register() (PasswordMismatchException) — the client check
+ * is just a UX shortcut, not a substitute for the real validation.
  */
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -13,6 +28,8 @@ export default function RegisterPage() {
     email: "",
     phoneNumber: "",
     password: "",
+    confirmPassword: "",
+    role: "CUSTOMER",
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -27,6 +44,12 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
     setSuccess(false);
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Mật khẩu xác nhận không khớp với mật khẩu đã nhập.");
+      return;
+    }
+
     setLoading(true);
     try {
       await register(formData);
@@ -97,7 +120,7 @@ export default function RegisterPage() {
               />
             </Form.Group>
 
-            <Form.Group className="mb-4" controlId="registerPassword">
+            <Form.Group className="mb-3" controlId="registerPassword">
               <Form.Label>Mật khẩu</Form.Label>
               <Form.Control
                 type="password"
@@ -107,6 +130,29 @@ export default function RegisterPage() {
                 onChange={handleChange}
                 required
               />
+            </Form.Group>
+
+            <Form.Group className="mb-3" controlId="registerConfirmPassword">
+              <Form.Label>Xác nhận mật khẩu</Form.Label>
+              <Form.Control
+                type="password"
+                name="confirmPassword"
+                placeholder="••••••••"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-4" controlId="registerRole">
+              <Form.Label>Vai trò</Form.Label>
+              <Form.Select name="role" value={formData.role} onChange={handleChange} required>
+                {ROLE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
 
             <Button type="submit" variant="success" className="w-100" disabled={loading}>

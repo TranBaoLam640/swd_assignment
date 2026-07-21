@@ -1,17 +1,20 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Container, Card, Form, Button, Alert, Spinner } from "react-bootstrap";
-import { login } from "../services/authService";
+import { login as loginApi } from "../services/authService";
+import { useAuth } from "../../../app/context";
 
 /**
  * Login page — controlled form, calls authService.login() against
- * POST /api/v1/auth/login.
+ * POST /api/v1/auth/login, then stores the session in AuthContext and
+ * redirects to the storefront.
  */
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -21,13 +24,11 @@ export default function LoginPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    setSuccess("");
     setLoading(true);
     try {
-      const { accessToken, userInfo } = await login(formData);
-      localStorage.setItem("accessToken", accessToken);
-      localStorage.setItem("userInfo", JSON.stringify(userInfo));
-      setSuccess(`Đăng nhập thành công, xin chào ${userInfo.fullName}!`);
+      const { accessToken, userInfo } = await loginApi(formData);
+      login(accessToken, userInfo);
+      navigate("/");
     } catch (err) {
       if (err.fieldErrors && err.fieldErrors.length > 0) {
         setError(err.fieldErrors.map((fe) => fe.message).join(" "));
@@ -51,7 +52,6 @@ export default function LoginPage() {
           <p className="text-center text-muted mb-4">Đăng nhập vào tài khoản của bạn</p>
 
           {error && <Alert variant="danger">{error}</Alert>}
-          {success && <Alert variant="success">{success}</Alert>}
 
           <Form onSubmit={handleSubmit}>
             <Form.Group className="mb-3" controlId="loginEmail">

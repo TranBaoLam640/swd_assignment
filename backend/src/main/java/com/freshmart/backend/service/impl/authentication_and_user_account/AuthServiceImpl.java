@@ -16,6 +16,8 @@ import com.freshmart.backend.enums.authentication_and_user_account.UserStatus;
 import com.freshmart.backend.exception.authentication_and_user_account.AccountSuspendedException;
 import com.freshmart.backend.exception.authentication_and_user_account.DuplicateEmailException;
 import com.freshmart.backend.exception.authentication_and_user_account.InvalidCredentialsException;
+import com.freshmart.backend.exception.authentication_and_user_account.InvalidRegistrationRoleException;
+import com.freshmart.backend.exception.authentication_and_user_account.PasswordMismatchException;
 import com.freshmart.backend.mapper.authentication_and_user_account.UserMapper;
 import com.freshmart.backend.security.JwtProvider;
 import com.freshmart.backend.service.interfaces.authentication_and_user_account.AuthService;
@@ -48,8 +50,11 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public UserResponse login(String email, String password) {
+        // Same message as InvalidCredentialsException below on purpose —
+        // don't reveal whether the email itself exists, only that the
+        // email+password combination is wrong (see UC01 alt-flow, step 5).
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Invalid email or password"));
+                .orElseThrow(() -> new ResourceNotFoundException("Email hoặc mật khẩu không chính xác."));
 
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new InvalidCredentialsException();
@@ -66,12 +71,27 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public boolean register(RegisterRequest request) {
+        // Checked first, matching UC02's step order (password/confirm
+        // mismatch is validated in step 5, before the duplicate-email check
+        // in step 6).
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new PasswordMismatchException();
+        }
+
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateEmailException(request.getEmail());
         }
 
-        Role customerRole = roleRepository.findByRoleName(RoleType.CUSTOMER)
-                .orElseThrow(() -> new IllegalStateException("DeER fault role CUSTOMis not seeded"));
+        // Self-service registration may create CUSTOMER/MANAGER/SHIPPER
+        // accounts (useful for demo/testing without a DB admin), but never
+        // ADMIN — see RegisterRequest's Javadoc and
+        // InvalidRegistrationRoleException.
+        if (request.getRole() == RoleType.ADMIN) {
+            throw new InvalidRegistrationRoleException();
+        }
+
+        Role role = roleRepository.findByRoleName(request.getRole())
+                .orElseThrow(() -> new IllegalStateException("Role " + request.getRole() + " is not seeded"));
 
         User user = new User();
         user.setEmail(request.getEmail());
@@ -79,7 +99,7 @@ public class AuthServiceImpl implements AuthService {
         user.setFullName(request.getFullName());
         user.setPhoneNumber(request.getPhoneNumber());
         user.setStatus(UserStatus.ACTIVE);
-        user.setRole(customerRole);
+        user.setRole(role);
 
         userRepository.save(user);
 
