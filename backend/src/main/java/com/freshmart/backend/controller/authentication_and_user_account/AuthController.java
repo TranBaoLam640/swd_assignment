@@ -34,7 +34,7 @@ public class AuthController {
     @PostMapping("/register")
     public ApiResponse<Void> register(@Valid @RequestBody RegisterRequest request) {
         authService.register(request);
-        return ApiResponse.success(201, "Registration successful, please login", null);
+        return ApiResponse.success(201, "Đăng ký thành công, vui lòng đăng nhập", null);
     }
 
     /** Requires a valid Bearer token (see SecurityConfig — only login/register are public). */

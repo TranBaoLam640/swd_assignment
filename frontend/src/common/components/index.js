@@ -3,3 +3,5 @@
  * Input, Spinner, ...). Feature-specific components should live inside
  * that feature's own folder instead.
  */
+export { default as Header } from "./Header";
+export { default as Footer } from "./Footer";

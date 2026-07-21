@@ -2,6 +2,8 @@ package com.freshmart.backend.common.exception;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -19,6 +21,8 @@ import com.freshmart.backend.common.dto.ApiResponse;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /** Business/API errors thrown deliberately by services (404, 409, 401, ...). */
     @ExceptionHandler(ApiException.class)
@@ -50,9 +54,17 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(403, "You do not have permission to perform this action"));
     }
 
-    /** Fallback for anything unexpected -> 500, message kept generic for the client. */
+    /**
+     * Fallback for anything unexpected -> 500, message kept generic for the
+     * client. Logged at ERROR with the full stack trace — without this,
+     * the real cause (e.g. a NullPointerException or DB error deep inside
+     * a service) was previously invisible anywhere, since this handler
+     * converts it straight into a response before Spring's own default
+     * error logging would ever see it.
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpected(Exception ex) {
+        log.error("Unexpected error occurred", ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(500, "Unexpected error occurred"));

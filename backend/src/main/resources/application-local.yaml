@@ -1,0 +1,11 @@
+# Local-only overrides — real secrets belong HERE, never in application.yaml.
+# This file is gitignored (see backend/.gitignore, "### key ###" section) so
+# it never gets committed. Spring Boot picks it up automatically because
+# application.yaml already sets spring.profiles.active: local — no env vars,
+# no IDE run-config changes needed.
+app:
+  vnpay:
+    # Real VNPAY sandbox credentials for this merchant account (school
+    # project, sandbox only — see VNPAY's own onboarding email).
+    tmn-code: 6GID79F5
+    hash-secret: DSL24HL0GNJKYAUIO09W94WAUZF9U00Z
