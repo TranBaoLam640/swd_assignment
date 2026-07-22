@@ -14,16 +14,25 @@ public class ProductMapper {
      * InventoryService and pass it in here rather than this mapper
      * reaching into another module's repository directly.
      */
-    public ProductResponse toResponse(Product product, Integer stockQuantity) {
+    public ProductResponse toResponse(Product product,
+                                      String shopName,
+                                      String categoryName,
+                                      Double averageRating,
+                                      Long reviewCount,
+                                      Integer stockQuantity) {
         return new ProductResponse(
                 product.getId(),
                 product.getShopId(),
+                shopName,
                 product.getCategoryId(),
+                categoryName,
                 product.getProductName(),
                 product.getDescription(),
                 product.getPrice(),
                 product.getImageUrl(),
                 product.getIsActive(),
+                averageRating,
+                reviewCount,
                 stockQuantity
         );
     }

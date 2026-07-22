@@ -2,14 +2,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { Navbar, Container, Nav, Badge } from "react-bootstrap";
 import { useAuth, useCart } from "../../app/context";
 
-/**
- * Global top navigation — brand, cart badge, and auth-aware links:
- * guest sees Đăng nhập/Đăng ký; a logged-in customer sees "Đơn hàng của
- * tôi" + "Địa chỉ của tôi" + the cart badge + logout; a manager also sees
- * the "Quản lý sản phẩm" link. Mirrors SecurityConfig's role-based path
- * rules so the nav never links somewhere the current role isn't allowed
- * to call.
- */
 export default function Header() {
   const { user, isAuthenticated, logout } = useAuth();
   const { cartCount } = useCart();
@@ -21,51 +13,57 @@ export default function Header() {
   }
 
   return (
-    <Navbar bg="success" variant="dark" expand="lg" className="mb-4">
+    <Navbar expand="lg" className="fm-navbar sticky-top">
       <Container>
-        <Navbar.Brand as={Link} to="/" className="fw-bold">
-          FreshMart
+        <Navbar.Brand as={Link} to="/">
+          <span className="fm-brand-mark">F</span>
+          <span>FreshMart</span>
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="main-navbar" />
         <Navbar.Collapse id="main-navbar">
           <Nav className="me-auto">
             <Nav.Link as={Link} to="/">
-              Sản phẩm
+              San pham
             </Nav.Link>
             {user?.role === "MANAGER" && (
-              <Nav.Link as={Link} to="/manager/products">
-                Quản lý sản phẩm
-              </Nav.Link>
+              <>
+                <Nav.Link as={Link} to="/manager/products">
+                  Quan ly san pham
+                </Nav.Link>
+                <Nav.Link as={Link} to="/manager/shops">
+                  Quan ly shop
+                </Nav.Link>
+              </>
             )}
           </Nav>
-          <Nav className="align-items-lg-center gap-lg-3">
+          <Nav className="align-items-lg-center gap-lg-2">
             {isAuthenticated && user?.role === "CUSTOMER" && (
               <>
                 <Nav.Link as={Link} to="/orders">
-                  Đơn hàng của tôi
+                  Don hang
                 </Nav.Link>
                 <Nav.Link as={Link} to="/addresses">
-                  Địa chỉ của tôi
+                  Dia chi
                 </Nav.Link>
                 <Nav.Link as={Link} to="/cart">
-                  Giỏ hàng <Badge bg="light" text="dark">{cartCount}</Badge>
+                  Gio hang <Badge bg="light" text="dark">{cartCount}</Badge>
                 </Nav.Link>
               </>
             )}
             {isAuthenticated ? (
               <>
-                <span className="text-white small">Xin chào, {user?.fullName}</span>
-                <Nav.Link as="span" role="button" className="text-white" onClick={handleLogout}>
-                  Đăng xuất
+                <span className="fm-user-pill small">Xin chao, {user?.fullName}</span>
+                <Nav.Link as="span" role="button" onClick={handleLogout}>
+                  Dang xuat
                 </Nav.Link>
               </>
             ) : (
               <>
                 <Nav.Link as={Link} to="/login">
-                  Đăng nhập
+                  Dang nhap
                 </Nav.Link>
                 <Nav.Link as={Link} to="/register">
-                  Đăng ký
+                  Dang ky
                 </Nav.Link>
               </>
             )}

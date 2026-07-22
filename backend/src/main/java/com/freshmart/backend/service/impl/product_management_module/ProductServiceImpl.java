@@ -7,8 +7,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.freshmart.backend.common.exception.ResourceNotFoundException;
+import com.freshmart.backend.data_access.entity.Category;
 import com.freshmart.backend.data_access.entity.Product;
+import com.freshmart.backend.data_access.entity.Shop;
+import com.freshmart.backend.data_access.repository.product_management_module.CategoryRepository;
 import com.freshmart.backend.data_access.repository.product_management_module.ProductRepository;
+import com.freshmart.backend.data_access.repository.product_management_module.ProductReviewRepository;
+import com.freshmart.backend.data_access.repository.product_management_module.ShopRepository;
 import com.freshmart.backend.dto.request.product_management_module.CreateProductRequest;
 import com.freshmart.backend.dto.request.product_management_module.UpdateProductRequest;
 import com.freshmart.backend.dto.response.product_management_module.ProductResponse;
@@ -38,13 +43,22 @@ import com.freshmart.backend.service.interfaces.product_management_module.Produc
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
+    private final ShopRepository shopRepository;
+    private final CategoryRepository categoryRepository;
+    private final ProductReviewRepository reviewRepository;
     private final ProductMapper productMapper;
     private final InventoryService inventoryService;
 
     public ProductServiceImpl(ProductRepository productRepository,
+                               ShopRepository shopRepository,
+                               CategoryRepository categoryRepository,
+                               ProductReviewRepository reviewRepository,
                                ProductMapper productMapper,
                                InventoryService inventoryService) {
         this.productRepository = productRepository;
+        this.shopRepository = shopRepository;
+        this.categoryRepository = categoryRepository;
+        this.reviewRepository = reviewRepository;
         this.productMapper = productMapper;
         this.inventoryService = inventoryService;
     }
@@ -66,12 +80,24 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> ResourceNotFoundException.of("Product", productId));
         int stock = inventoryService.getByProduct(productId).getStockQuantity();
-        return productMapper.toResponse(product, stock);
+        String shopName = getShopName(product.getShopId());
+        String categoryName = getCategoryName(product.getCategoryId());
+        ReviewSummary reviewSummary = getReviewSummary(product.getId());
+        return productMapper.toResponse(
+                product,
+                shopName,
+                categoryName,
+                reviewSummary.averageRating(),
+                reviewSummary.reviewCount(),
+                stock);
     }
 
     @Override
     @Transactional
     public ProductResponse createProduct(CreateProductRequest request) {
+        Shop shop = shopRepository.findById(request.getShopId())
+                .orElseThrow(() -> ResourceNotFoundException.of("Shop", request.getShopId()));
+
         Product product = new Product();
         product.setShopId(request.getShopId());
         product.setCategoryId(request.getCategoryId());
@@ -84,7 +110,7 @@ public class ProductServiceImpl implements ProductService {
 
         inventoryService.createForProduct(product.getId());
 
-        return productMapper.toResponse(product, 0);
+        return productMapper.toResponse(product, shop.getShopName(), getCategoryName(product.getCategoryId()), 0.0, 0L, 0);
     }
 
     @Override
@@ -102,13 +128,71 @@ public class ProductServiceImpl implements ProductService {
         productRepository.save(product);
 
         int stock = inventoryService.getByProduct(productId).getStockQuantity();
-        return productMapper.toResponse(product, stock);
+        return productMapper.toResponse(
+                product,
+                getShopName(product.getShopId()),
+                getCategoryName(product.getCategoryId()),
+                getReviewSummary(product.getId()).averageRating(),
+                getReviewSummary(product.getId()).reviewCount(),
+                stock);
     }
 
     private List<ProductResponse> toResponsesWithStock(List<Product> products) {
+        if (products.isEmpty()) {
+            return List.of();
+        }
         Map<Long, Integer> stockMap = inventoryService.getStockMap(products.stream().map(Product::getId).toList());
+        Map<Long, String> shopNameMap = shopRepository
+                .findAllById(products.stream().map(Product::getShopId).distinct().toList())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(Shop::getId, Shop::getShopName));
+        Map<Long, String> categoryNameMap = categoryRepository
+                .findAllById(products.stream()
+                        .map(Product::getCategoryId)
+                        .filter(java.util.Objects::nonNull)
+                        .distinct()
+                        .toList())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(Category::getId, Category::getCategoryName));
+        Map<Long, ReviewSummary> reviewSummaryMap = reviewRepository
+                .summarizeByProductIds(products.stream().map(Product::getId).toList())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> new ReviewSummary(((Number) row[1]).doubleValue(), ((Number) row[2]).longValue())));
         return products.stream()
-                .map(p -> productMapper.toResponse(p, stockMap.getOrDefault(p.getId(), 0)))
+                .map(p -> productMapper.toResponse(
+                        p,
+                        shopNameMap.get(p.getShopId()),
+                        categoryNameMap.get(p.getCategoryId()),
+                        reviewSummaryMap.getOrDefault(p.getId(), new ReviewSummary(0.0, 0L)).averageRating(),
+                        reviewSummaryMap.getOrDefault(p.getId(), new ReviewSummary(0.0, 0L)).reviewCount(),
+                        stockMap.getOrDefault(p.getId(), 0)))
                 .toList();
+    }
+
+    private String getShopName(Long shopId) {
+        return shopRepository.findById(shopId)
+                .map(Shop::getShopName)
+                .orElse(null);
+    }
+
+    private String getCategoryName(Long categoryId) {
+        if (categoryId == null) {
+            return null;
+        }
+        return categoryRepository.findById(categoryId)
+                .map(Category::getCategoryName)
+                .orElse(null);
+    }
+
+    private ReviewSummary getReviewSummary(Long productId) {
+        return reviewRepository.summarizeByProductIds(List.of(productId)).stream()
+                .findFirst()
+                .map(row -> new ReviewSummary(((Number) row[1]).doubleValue(), ((Number) row[2]).longValue()))
+                .orElse(new ReviewSummary(0.0, 0L));
+    }
+
+    private record ReviewSummary(Double averageRating, Long reviewCount) {
     }
 }

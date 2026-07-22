@@ -12,7 +12,12 @@ const STATUS_LABELS = {
   EXPIRED: { label: "Đã hết hạn", variant: "dark" },
 };
 
-/** Order History page — UC15. */
+const PAYMENT_METHOD_LABELS = {
+  COD: "COD",
+  ONLINE: "Online",
+};
+
+/** Order History page - UC15. */
 export default function OrderHistoryPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +64,7 @@ export default function OrderHistoryPage() {
             <tr>
               <th>Mã đơn</th>
               <th>Ngày đặt</th>
+              <th>Phương thức</th>
               <th>Tổng tiền</th>
               <th>Trạng thái</th>
               <th></th>
@@ -71,6 +77,7 @@ export default function OrderHistoryPage() {
                 <tr key={order.orderId}>
                   <td>#{order.orderId}</td>
                   <td>{new Date(order.createdAt).toLocaleString("vi-VN")}</td>
+                  <td>{PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod ?? "-"}</td>
                   <td>{Number(order.totalAmount ?? 0).toLocaleString("vi-VN")} đ</td>
                   <td>
                     <Badge bg={statusInfo.variant}>{statusInfo.label}</Badge>

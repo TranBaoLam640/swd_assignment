@@ -7,6 +7,7 @@
 export {
   ManagerProductListPage,
   ManagerProductFormPage,
+  ManagerShopListPage,
   ProductListPage,
   ProductDetailPage,
 } from "./pages";

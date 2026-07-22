@@ -40,4 +40,4 @@ application-*.yml
 # alone would NOT catch application-local.yaml, so mirror them here too.
 application-local.yaml
 application-*.yaml
-!application.yaml
+application.yaml

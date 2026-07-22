@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Container, Row, Col, Card, Button, Alert, Spinner, Badge, Form, InputGroup } from "react-bootstrap";
 import { browseProducts } from "../services/productService";
 import { listCategories } from "../services/categoryService";
+import RatingStars from "../components/RatingStars";
 import {
   addToCart,
   viewCart,
@@ -173,9 +174,16 @@ export default function ProductListPage() {
 
   return (
     <Container className="py-4">
+      <section className="fm-catalog-hero">
+        <div>
+          <p className="fm-eyebrow">Fresh fruits, daily stock</p>
+          <h1>FreshMart</h1>
+          <p>Chon trai cay tuoi, xem ton kho ro rang va them vao gio hang chi trong vai thao tac.</p>
+        </div>
+      </section>
       <h3 className="text-success fw-bold mb-4">Sản phẩm tươi ngon mỗi ngày</h3>
 
-      <Form onSubmit={handleSearchSubmit} className="mb-4">
+      <Form onSubmit={handleSearchSubmit} className="fm-filter-bar mb-4">
         <Row className="g-2 align-items-end">
           <Col xs={12} md={6}>
             <Form.Label className="small text-muted mb-1">Tìm kiếm sản phẩm</Form.Label>
@@ -246,6 +254,13 @@ export default function ProductListPage() {
                         />
                         <Card.Body>
                           <Card.Title className="fs-6">{product.productName}</Card.Title>
+                          <div className="mb-2">
+                            <RatingStars
+                              value={product.averageRating ?? 0}
+                              count={product.reviewCount ?? 0}
+                              size="sm"
+                            />
+                          </div>
                           <Card.Text className="text-success fw-bold mb-0">
                             {Number(product.price ?? 0).toLocaleString("vi-VN")} đ
                           </Card.Text>

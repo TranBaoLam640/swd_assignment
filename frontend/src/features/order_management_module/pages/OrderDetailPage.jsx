@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Container, Table, Badge, Alert, Spinner, Button, Modal, Form } from "react-bootstrap";
 import { getOrder, cancelOrder, createPaymentUrl } from "../services/orderService";
+import { createReview, listMyOrderReviews } from "../../product_management_module/services/reviewService";
 
 const STATUS_LABELS = {
   CREATED: { label: "Đang xử lý", variant: "secondary" },
@@ -12,30 +13,32 @@ const STATUS_LABELS = {
   EXPIRED: { label: "Đã hết hạn", variant: "dark" },
 };
 
-// Mirrors OrderStateMachine's ALLOWED_TRANSITIONS on the backend — only
-// show "Hủy đơn" when the backend would actually accept a cancel.
 const CANCELLABLE_STATUSES = ["FRUIT_HELD", "PENDING_PAYMENT", "CONFIRMED"];
 
-/**
- * Order Detail page — UC16 (view) + UC17 (cancel).
- *
- * For an ONLINE order still PENDING_PAYMENT (e.g. the customer closed the
- * VNPAY tab without finishing, or the payment attempt failed some other
- * way before it expires), this also offers "Thanh toán lại": it just
- * re-requests a fresh payment-url the same way CheckoutPage does and
- * redirects there. If the order sits unpaid past the backend's timeout
- * (OrderExpiryScheduler, default 15 min), it flips to EXPIRED on its own
- * and this button disappears along with the other order actions.
- */
+function isReviewableOrder(order) {
+  if (order.status !== "CONFIRMED") return false;
+  if (order.paymentMethod === "COD") return true;
+  return order.paymentMethod === "ONLINE" && order.paymentStatus === "SUCCESS";
+}
+
 export default function OrderDetailPage() {
   const { orderId } = useParams();
   const [order, setOrder] = useState(null);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
   const [payingAgain, setPayingAgain] = useState(false);
+  const [reviewItem, setReviewItem] = useState(null);
+  const [reviewForm, setReviewForm] = useState({
+    rating: 5,
+    comment: "",
+    imageUrl: "",
+    videoUrl: "",
+  });
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     loadOrder();
@@ -48,6 +51,8 @@ export default function OrderDetailPage() {
     try {
       const data = await getOrder(orderId);
       setOrder(data);
+      const reviewList = await listMyOrderReviews(orderId).catch(() => []);
+      setReviews(reviewList ?? []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -82,6 +87,41 @@ export default function OrderDetailPage() {
     }
   }
 
+  function openReviewModal(item) {
+    setReviewItem(item);
+    setReviewForm({ rating: 5, comment: "", imageUrl: "", videoUrl: "" });
+  }
+
+  function handleReviewChange(e) {
+    const { name, value } = e.target;
+    setReviewForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  async function handleSubmitReview() {
+    setSubmittingReview(true);
+    setError("");
+    try {
+      const created = await createReview({
+        orderId: order.orderId,
+        productId: reviewItem.productId,
+        rating: Number(reviewForm.rating),
+        comment: reviewForm.comment,
+        imageUrl: reviewForm.imageUrl,
+        videoUrl: reviewForm.videoUrl,
+      });
+      setReviews((prev) => [...prev, created]);
+      setReviewItem(null);
+    } catch (err) {
+      if (err.fieldErrors && err.fieldErrors.length > 0) {
+        setError(err.fieldErrors.map((fe) => fe.message).join(" "));
+      } else {
+        setError(err.message);
+      }
+    } finally {
+      setSubmittingReview(false);
+    }
+  }
+
   if (loading) {
     return (
       <Container className="d-flex justify-content-center py-5">
@@ -95,7 +135,7 @@ export default function OrderDetailPage() {
       <Container className="py-4">
         <Alert variant="danger">{error}</Alert>
         <Button as={Link} to="/orders" variant="outline-secondary" size="sm">
-          ← Quay lại danh sách đơn hàng
+          Quay lại danh sách đơn hàng
         </Button>
       </Container>
     );
@@ -104,11 +144,13 @@ export default function OrderDetailPage() {
   const statusInfo = STATUS_LABELS[order.status] ?? { label: order.status, variant: "secondary" };
   const canCancel = CANCELLABLE_STATUSES.includes(order.status);
   const canPayAgain = order.status === "PENDING_PAYMENT" && order.paymentMethod === "ONLINE";
+  const canReview = isReviewableOrder(order);
+  const reviewedProductIds = new Set(reviews.map((review) => review.productId));
 
   return (
-    <Container className="py-4" style={{ maxWidth: 720 }}>
+    <Container className="py-4" style={{ maxWidth: 860 }}>
       <Button as={Link} to="/orders" variant="outline-secondary" size="sm" className="mb-3">
-        ← Quay lại danh sách đơn hàng
+        Quay lại danh sách đơn hàng
       </Button>
 
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -127,10 +169,7 @@ export default function OrderDetailPage() {
 
       {canPayAgain && (
         <Alert variant="warning" className="d-flex justify-content-between align-items-center">
-          <span>
-            Đơn hàng đang chờ thanh toán. Nếu bạn chưa hoàn tất thanh toán trên VNPAY, hãy thử lại bên dưới
-            (đơn sẽ tự động bị hủy nếu quá thời gian chờ).
-          </span>
+          <span>Đơn hàng đang chờ thanh toán. Bạn có thể tạo lại link VNPAY để thanh toán tiếp.</span>
           <Button variant="warning" size="sm" className="text-nowrap ms-3" disabled={payingAgain} onClick={handlePayAgain}>
             {payingAgain ? <Spinner animation="border" size="sm" /> : "Thanh toán lại"}
           </Button>
@@ -147,20 +186,35 @@ export default function OrderDetailPage() {
         <thead>
           <tr>
             <th>Sản phẩm</th>
-            <th style={{ width: 100 }}>SL</th>
-            <th style={{ width: 140 }}>Đơn giá</th>
-            <th style={{ width: 140 }}>Thành tiền</th>
+            <th style={{ width: 80 }}>SL</th>
+            <th style={{ width: 130 }}>Đơn giá</th>
+            <th style={{ width: 130 }}>Thành tiền</th>
+            <th style={{ width: 130 }}>Đánh giá</th>
           </tr>
         </thead>
         <tbody>
-          {order.items.map((item) => (
-            <tr key={item.orderItemId}>
-              <td>{item.productName ?? `Sản phẩm #${item.productId}`}</td>
-              <td>{item.quantity}</td>
-              <td>{Number(item.priceAtPurchase).toLocaleString("vi-VN")} đ</td>
-              <td>{Number(item.subtotal).toLocaleString("vi-VN")} đ</td>
-            </tr>
-          ))}
+          {order.items.map((item) => {
+            const reviewed = reviewedProductIds.has(item.productId);
+            return (
+              <tr key={item.orderItemId}>
+                <td>{item.productName ?? `Sản phẩm #${item.productId}`}</td>
+                <td>{item.quantity}</td>
+                <td>{Number(item.priceAtPurchase).toLocaleString("vi-VN")} đ</td>
+                <td>{Number(item.subtotal).toLocaleString("vi-VN")} đ</td>
+                <td>
+                  {reviewed ? (
+                    <Badge bg="success">Đã đánh giá</Badge>
+                  ) : canReview ? (
+                    <Button variant="outline-success" size="sm" onClick={() => openReviewModal(item)}>
+                      Đánh giá
+                    </Button>
+                  ) : (
+                    <span className="text-muted">-</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </Table>
 
@@ -178,6 +232,55 @@ export default function OrderDetailPage() {
           Hủy đơn hàng
         </Button>
       )}
+
+      <Modal show={Boolean(reviewItem)} onHide={() => setReviewItem(null)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Đánh giá sản phẩm</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {reviewItem && (
+            <>
+              <p className="fw-semibold mb-3">{reviewItem.productName ?? `Sản phẩm #${reviewItem.productId}`}</p>
+              <Form.Group className="mb-3" controlId="reviewRating">
+                <Form.Label>Rating</Form.Label>
+                <Form.Select name="rating" value={reviewForm.rating} onChange={handleReviewChange} required>
+                  <option value={5}>5 - Rất hài lòng</option>
+                  <option value={4}>4 - Hài lòng</option>
+                  <option value={3}>3 - Bình thường</option>
+                  <option value={2}>2 - Chưa hài lòng</option>
+                  <option value={1}>1 - Không hài lòng</option>
+                </Form.Select>
+              </Form.Group>
+              <Form.Group className="mb-3" controlId="reviewComment">
+                <Form.Label>Comment</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  name="comment"
+                  value={reviewForm.comment}
+                  onChange={handleReviewChange}
+                />
+              </Form.Group>
+              <Form.Group className="mb-3" controlId="reviewImageUrl">
+                <Form.Label>Image URL</Form.Label>
+                <Form.Control name="imageUrl" value={reviewForm.imageUrl} onChange={handleReviewChange} />
+              </Form.Group>
+              <Form.Group controlId="reviewVideoUrl">
+                <Form.Label>Video URL</Form.Label>
+                <Form.Control name="videoUrl" value={reviewForm.videoUrl} onChange={handleReviewChange} />
+              </Form.Group>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setReviewItem(null)}>
+            Đóng
+          </Button>
+          <Button variant="success" disabled={submittingReview} onClick={handleSubmitReview}>
+            {submittingReview ? <Spinner animation="border" size="sm" /> : "Gửi đánh giá"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <Modal show={showCancelModal} onHide={() => setShowCancelModal(false)}>
         <Modal.Header closeButton>
@@ -199,11 +302,7 @@ export default function OrderDetailPage() {
           <Button variant="secondary" onClick={() => setShowCancelModal(false)}>
             Đóng
           </Button>
-          <Button
-            variant="danger"
-            disabled={!cancelReason.trim() || cancelling}
-            onClick={handleConfirmCancel}
-          >
+          <Button variant="danger" disabled={!cancelReason.trim() || cancelling} onClick={handleConfirmCancel}>
             {cancelling ? <Spinner animation="border" size="sm" /> : "Xác nhận hủy"}
           </Button>
         </Modal.Footer>

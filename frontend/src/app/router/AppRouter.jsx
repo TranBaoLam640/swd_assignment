@@ -8,6 +8,7 @@ import {
   ProductDetailPage,
   ManagerProductListPage,
   ManagerProductFormPage,
+  ManagerShopListPage,
 } from "../../features/product_management_module";
 import {
   CheckoutPage,
@@ -68,6 +69,14 @@ export default function AppRouter() {
             element={
               <RequireRole roles={["CUSTOMER"]}>
                 <AddressListPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/manager/shops"
+            element={
+              <RequireRole roles={["MANAGER"]}>
+                <ManagerShopListPage />
               </RequireRole>
             }
           />
