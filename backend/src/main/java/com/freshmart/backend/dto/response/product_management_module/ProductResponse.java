@@ -15,12 +15,16 @@ import lombok.Setter;
 public class ProductResponse {
     private Long productId;
     private Long shopId;
+    private String shopName;
     private Long categoryId;
+    private String categoryName;
     private String productName;
     private String description;
     private BigDecimal price;
     private String imageUrl;
     private Boolean isActive;
+    private Double averageRating;
+    private Long reviewCount;
 
     /**
      * Current Inventory.stockQuantity for this product — added so the

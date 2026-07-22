@@ -39,11 +39,13 @@ USE freshmart_db;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS payment;
+DROP TABLE IF EXISTS product_review;
 DROP TABLE IF EXISTS order_item;
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS cart_items;
 DROP TABLE IF EXISTS inventory;
 DROP TABLE IF EXISTS product;
+DROP TABLE IF EXISTS shop;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS role;
 
@@ -76,6 +78,20 @@ CREATE TABLE users (
   role_id       BIGINT       NOT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uk_users_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE shop (
+  id               BIGINT       NOT NULL AUTO_INCREMENT,
+  created_at       DATETIME(6)  NOT NULL,
+  updated_at       DATETIME(6)  NOT NULL,
+  owner_id         BIGINT       NOT NULL,
+  shop_name        VARCHAR(255) NOT NULL,
+  shop_address     VARCHAR(255) NOT NULL,
+  shop_description VARCHAR(255),
+  status           VARCHAR(255) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_shop_name (shop_name),
+  UNIQUE KEY uk_shop_address (shop_address)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE product (
@@ -136,6 +152,20 @@ CREATE TABLE order_item (
   quantity          INT           NOT NULL,
   price_at_purchase DECIMAL(10,2) NOT NULL,
   PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE product_review (
+  id         BIGINT      NOT NULL AUTO_INCREMENT,
+  created_at DATETIME(6) NOT NULL,
+  updated_at DATETIME(6) NOT NULL,
+  order_id   BIGINT      NOT NULL,
+  product_id BIGINT      NOT NULL,
+  rating     INT         NOT NULL,
+  comment    TEXT,
+  image_url  VARCHAR(255),
+  video_url  VARCHAR(255),
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_review_order_product (order_id, product_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE payment (
@@ -251,5 +281,16 @@ SELECT NOW(6), NOW(6), id, 50 FROM product WHERE product_name = 'Lê Hàn Quốc
 -- =====================================================================
 -- SELECT (SELECT COUNT(*) FROM role) AS roles,
 --        (SELECT COUNT(*) FROM users) AS users,
+--        (SELECT COUNT(*) FROM shop) AS shops,
 --        (SELECT COUNT(*) FROM product) AS products,
 --        (SELECT COUNT(*) FROM inventory) AS inventory_rows;
+-- --- Shops -----------------------------------------------------------
+INSERT INTO shop (created_at, updated_at, owner_id, shop_name, shop_address, shop_description, status)
+VALUES (
+  NOW(6), NOW(6),
+  (SELECT id FROM users WHERE email = 'manager@freshmart.test'),
+  'FreshMart Main Shop',
+  '123 Nguyen Trai, District 1, Ho Chi Minh City',
+  'Fresh fruit shop for local and imported produce.',
+  'ACTIVE'
+);

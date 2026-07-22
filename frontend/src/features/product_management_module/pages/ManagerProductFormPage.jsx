@@ -1,14 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Container, Card, Form, Button, Alert, Spinner } from "react-bootstrap";
+import { listCategories } from "../services/categoryService";
 import { getProduct, createProduct, updateProduct } from "../services/productService";
+import { listShopsForManager } from "../services/shopService";
 
-/**
- * Manager product create/edit form — UC22 (Create New Product), UC23
- * (Update Product Catalog), UC25 (Toggle Product Availability Status).
- * One page handles both: create when there is no :productId route param,
- * edit when there is.
- */
 export default function ManagerProductFormPage() {
   const { productId } = useParams();
   const navigate = useNavigate();
@@ -23,16 +19,41 @@ export default function ManagerProductFormPage() {
     imageUrl: "",
     isActive: true,
   });
+  const [shops, setShops] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    loadShops();
+    loadCategories();
     if (isEdit) {
       loadProduct();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);
+
+  async function loadShops() {
+    try {
+      const list = await listShopsForManager();
+      setShops(list ?? []);
+      if (!isEdit && (list ?? []).length > 0) {
+        setFormData((prev) => ({ ...prev, shopId: prev.shopId || String(list[0].shopId) }));
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function loadCategories() {
+    try {
+      const list = await listCategories();
+      setCategories(list ?? []);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   async function loadProduct() {
     setLoading(true);
@@ -117,25 +138,35 @@ export default function ManagerProductFormPage() {
           <Form onSubmit={handleSubmit}>
             {!isEdit && (
               <Form.Group className="mb-3" controlId="productShopId">
-                <Form.Label>Shop ID</Form.Label>
-                <Form.Control
-                  type="number"
+                <Form.Label>Shop</Form.Label>
+                <Form.Select
                   name="shopId"
                   value={formData.shopId}
                   onChange={handleChange}
                   required
-                />
+                >
+                  <option value="" disabled>
+                    Chọn shop
+                  </option>
+                  {shops.map((shop) => (
+                    <option key={shop.shopId} value={shop.shopId}>
+                      {shop.shopName}
+                    </option>
+                  ))}
+                </Form.Select>
               </Form.Group>
             )}
 
             <Form.Group className="mb-3" controlId="productCategoryId">
-              <Form.Label>Category ID (tùy chọn)</Form.Label>
-              <Form.Control
-                type="number"
-                name="categoryId"
-                value={formData.categoryId}
-                onChange={handleChange}
-              />
+              <Form.Label>Category</Form.Label>
+              <Form.Select name="categoryId" value={formData.categoryId} onChange={handleChange}>
+                <option value="">Không chọn category</option>
+                {categories.map((category) => (
+                  <option key={category.categoryId} value={category.categoryId}>
+                    {category.categoryName}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3" controlId="productName">
@@ -181,7 +212,7 @@ export default function ManagerProductFormPage() {
               <Form.Group className="mb-4" controlId="productIsActive">
                 <Form.Check
                   type="switch"
-                  label="Đang bán (hiển thị cho khách)"
+                  label="Đang bán"
                   name="isActive"
                   checked={formData.isActive}
                   onChange={handleChange}

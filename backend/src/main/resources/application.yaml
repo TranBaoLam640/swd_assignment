@@ -46,6 +46,6 @@ app:
     # Return nor IPN ever calls back, an order would otherwise stay
     # PENDING_PAYMENT (and its stock locked) forever. OrderExpiryScheduler
     # expires any order still PENDING_PAYMENT past this many minutes.
-    pending-payment-timeout-minutes: ${ORDER_PENDING_PAYMENT_TIMEOUT_MINUTES:1}
+    pending-payment-timeout-minutes: ${ORDER_PENDING_PAYMENT_TIMEOUT_MINUTES:2}
     # How often OrderExpiryScheduler checks for stale orders.
     expiry-check-interval-ms: ${ORDER_EXPIRY_CHECK_INTERVAL_MS:60000}

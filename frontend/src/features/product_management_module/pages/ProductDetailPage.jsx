@@ -1,23 +1,16 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Container, Row, Col, Image, Badge, Button, Form, Alert, Spinner } from "react-bootstrap";
+import { Container, Row, Col, Image, Badge, Button, Form, Alert, Spinner, Card } from "react-bootstrap";
+import RatingStars from "../components/RatingStars";
 import { getProduct } from "../services/productService";
+import { listProductReviews } from "../services/reviewService";
 import { addToCart, viewCart } from "../../cart_management_module/services/cartService";
 import { useAuth, useCart } from "../../../app/context";
 
-/**
- * Product detail page — UC11 (view detail before adding to cart).
- *
- * The quantity typed here is validated against the product's current stock
- * (ProductResponse.stockQuantity) BEFORE calling the API — and against
- * whatever quantity of this same product is already sitting in the cart,
- * since stock is a shared pool (adding 3 more when 8 are already in the
- * cart and only 10 are in stock should fail, even though 3 alone would be
- * fine). The backend (CartServiceImpl) re-checks the same thing server-side.
- */
 export default function ProductDetailPage() {
   const { productId } = useParams();
   const [product, setProduct] = useState(null);
+  const [reviews, setReviews] = useState([]);
   const [quantity, setQuantity] = useState(1);
   const [cartQuantity, setCartQuantity] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -37,8 +30,12 @@ export default function ProductDetailPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await getProduct(productId);
-      setProduct(data);
+      const [productData, reviewList] = await Promise.all([
+        getProduct(productId),
+        listProductReviews(productId).catch(() => []),
+      ]);
+      setProduct(productData);
+      setReviews(reviewList ?? []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -69,8 +66,8 @@ export default function ProductDetailPage() {
     if (quantity > remaining) {
       setError(
         remaining > 0
-          ? `Không thể thêm quá số lượng hiện có trong kho — chỉ có thể thêm tối đa ${remaining} sản phẩm nữa (kho còn ${stock}, giỏ hàng đã có ${cartQuantity}).`
-          : `Không thể thêm — sản phẩm này đã có đủ ${cartQuantity} trong giỏ hàng, bằng với số lượng kho hiện có (${stock}).`
+          ? `Không thể thêm quá số lượng còn trong kho. Bạn chỉ có thể thêm tối đa ${remaining} sản phẩm nữa.`
+          : `Không thể thêm vì số lượng trong giỏ hàng đã bằng số lượng tồn kho (${stock}).`
       );
       return;
     }
@@ -100,7 +97,7 @@ export default function ProductDetailPage() {
     return (
       <Container className="py-4">
         <Alert variant="danger">{error}</Alert>
-        <Link to="/">← Quay lại danh sách sản phẩm</Link>
+        <Link to="/">Quay lại danh sách sản phẩm</Link>
       </Container>
     );
   }
@@ -110,9 +107,9 @@ export default function ProductDetailPage() {
 
   return (
     <Container className="py-4">
-      <Link to="/" className="btn btn-outline-secondary btn-sm mb-3 d-inline-flex align-items-center gap-2">
-  <span>←</span> Quay lại danh sách sản phẩm
-</Link>
+      <Link to="/" className="btn btn-outline-secondary btn-sm mb-3">
+        Quay lại danh sách sản phẩm
+      </Link>
 
       {error && <Alert variant="danger">{error}</Alert>}
       {message && <Alert variant="success">{message}</Alert>}
@@ -127,6 +124,9 @@ export default function ProductDetailPage() {
         </Col>
         <Col md={7}>
           <h3 className="fw-bold">{product.productName}</h3>
+          <div className="mb-2">
+            <RatingStars value={product.averageRating ?? 0} count={product.reviewCount ?? 0} />
+          </div>
           <Badge bg={product.isActive ? "success" : "secondary"} className="mb-3">
             {product.isActive ? "Đang bán" : "Ngừng bán"}
           </Badge>
@@ -164,6 +164,53 @@ export default function ProductDetailPage() {
           )}
         </Col>
       </Row>
+
+      <section className="mt-5">
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h4 className="fw-bold mb-0">Đánh giá sản phẩm</h4>
+          <RatingStars value={product.averageRating ?? 0} count={product.reviewCount ?? 0} />
+        </div>
+
+        {reviews.length === 0 ? (
+          <Alert variant="light" className="border">
+            Chưa có đánh giá nào cho sản phẩm này.
+          </Alert>
+        ) : (
+          <div className="d-grid gap-3">
+            {reviews.map((review) => (
+              <Card key={review.reviewId} className="border-0 shadow-sm">
+                <Card.Body>
+                  <div className="d-flex justify-content-between gap-3 mb-2">
+                    <div>
+                      <div className="fw-semibold">{review.reviewerName || "Khách hàng"}</div>
+                      <RatingStars value={review.rating} size="sm" />
+                    </div>
+                    <span className="text-muted small">
+                      {review.createdAt ? new Date(review.createdAt).toLocaleString("vi-VN") : ""}
+                    </span>
+                  </div>
+
+                  {review.comment && <p className="mb-2">{review.comment}</p>}
+                  {review.imageUrl && (
+                    <div className="mb-2">
+                      <a href={review.imageUrl} target="_blank" rel="noreferrer">
+                        Image URL
+                      </a>
+                    </div>
+                  )}
+                  {review.videoUrl && (
+                    <div>
+                      <a href={review.videoUrl} target="_blank" rel="noreferrer">
+                        Video URL
+                      </a>
+                    </div>
+                  )}
+                </Card.Body>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
     </Container>
   );
 }

@@ -4,13 +4,6 @@ import { Container, Table, Button, Alert, Spinner, Badge, Form, InputGroup } fro
 import { listAllProductsForManager } from "../services/productService";
 import { getStock, increaseStock, decreaseStock, setStock } from "../../inventory_management_module/services/inventoryService";
 
-/**
- * Manager product catalog (UC21-25: view/create/update/toggle products)
- * with inline stock control per row (UC29 - Update Stock Quantity,
- * simplified to the SDS one-row-per-product Inventory model — see
- * InventoryServiceImpl's Javadoc for the SRS "batch" model discrepancy
- * this deliberately does not implement).
- */
 export default function ManagerProductListPage() {
   const [products, setProducts] = useState([]);
   const [stockByProduct, setStockByProduct] = useState({});
@@ -110,6 +103,8 @@ export default function ManagerProductListPage() {
           <thead>
             <tr>
               <th>Tên sản phẩm</th>
+              <th>Shop</th>
+              <th>Category</th>
               <th>Giá</th>
               <th>Trạng thái</th>
               <th style={{ width: 280 }}>Tồn kho</th>
@@ -120,6 +115,8 @@ export default function ManagerProductListPage() {
             {products.map((product) => (
               <tr key={product.productId}>
                 <td>{product.productName}</td>
+                <td>{product.shopName ?? `#${product.shopId}`}</td>
+                <td>{product.categoryName ?? "-"}</td>
                 <td>{Number(product.price ?? 0).toLocaleString("vi-VN")} đ</td>
                 <td>
                   <Badge bg={product.isActive ? "success" : "secondary"}>
@@ -128,7 +125,7 @@ export default function ManagerProductListPage() {
                 </td>
                 <td>
                   <div className="d-flex align-items-center gap-2">
-                    <strong>{stockByProduct[product.productId] ?? "—"}</strong>
+                    <strong>{stockByProduct[product.productId] ?? "-"}</strong>
                     <InputGroup size="sm" style={{ width: 190 }}>
                       <Form.Control
                         type="number"

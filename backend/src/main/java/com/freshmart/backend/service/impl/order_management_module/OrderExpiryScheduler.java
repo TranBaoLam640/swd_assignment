@@ -1,7 +1,6 @@
 package com.freshmart.backend.service.impl.order_management_module;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,6 +25,10 @@ import lombok.extern.slf4j.Slf4j;
  * transitions PENDING_PAYMENT -> EXPIRED — an edge OrderStateMachine
  * already modeled but that nothing previously ever triggered.
  *
+ * <p>timeoutMinutes is a double (not long) so demo/test configs can use
+ * fractional values like 0.5 (30 seconds) — computed via minusMillis
+ * rather than ChronoUnit.MINUTES, which only accepts whole numbers.
+ *
  * <p>Requires {@code @EnableScheduling} on {@code BackendApplication} —
  * added alongside this class.
  */
@@ -34,17 +37,18 @@ import lombok.extern.slf4j.Slf4j;
 public class OrderExpiryScheduler {
 
     private final OrderService orderService;
-    private final long timeoutMinutes;
+    private final double timeoutMinutes;
 
     public OrderExpiryScheduler(OrderService orderService,
-                                 @Value("${app.order.pending-payment-timeout-minutes}") long timeoutMinutes) {
+                                 @Value("${app.order.pending-payment-timeout-minutes}") double timeoutMinutes) {
         this.orderService = orderService;
         this.timeoutMinutes = timeoutMinutes;
     }
 
     @Scheduled(fixedRateString = "${app.order.expiry-check-interval-ms}")
     public void expireStalePendingPayments() {
-        Instant cutoff = Instant.now().minus(timeoutMinutes, ChronoUnit.MINUTES);
+        long timeoutMillis = Math.round(timeoutMinutes * 60_000);
+        Instant cutoff = Instant.now().minusMillis(timeoutMillis);
         int expired = orderService.expireStalePendingPayments(cutoff);
         if (expired > 0) {
             log.info("Expired {} order(s) stuck in PENDING_PAYMENT for over {} minute(s)", expired, timeoutMinutes);
