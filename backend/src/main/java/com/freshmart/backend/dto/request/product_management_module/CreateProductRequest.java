@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import com.freshmart.backend.enums.product_management_module.PriceUnit;
 
 /** Request body for Manager product creation (FE-03: Product Management). */
 @Getter
@@ -28,6 +29,13 @@ public class CreateProductRequest {
     @NotNull
     @DecimalMin(value = "0.0", inclusive = true)
     private BigDecimal price;
+
+    @NotNull
+    private PriceUnit priceUnit = PriceUnit.KG;
+
+    @NotNull
+    @jakarta.validation.constraints.Min(1)
+    private Integer priceQuantityGrams = 1000;
 
     private String imageUrl;
 }

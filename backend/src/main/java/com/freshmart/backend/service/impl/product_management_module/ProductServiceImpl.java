@@ -104,6 +104,8 @@ public class ProductServiceImpl implements ProductService {
         product.setProductName(request.getProductName());
         product.setDescription(request.getDescription());
         product.setPrice(request.getPrice());
+        product.setPriceUnit(request.getPriceUnit());
+        product.setPriceQuantityGrams(request.getPriceQuantityGrams());
         product.setImageUrl(request.getImageUrl());
         product.setIsActive(true);
         productRepository.save(product);
@@ -123,6 +125,8 @@ public class ProductServiceImpl implements ProductService {
         product.setProductName(request.getProductName());
         product.setDescription(request.getDescription());
         product.setPrice(request.getPrice());
+        product.setPriceUnit(request.getPriceUnit());
+        product.setPriceQuantityGrams(request.getPriceQuantityGrams());
         product.setImageUrl(request.getImageUrl());
         product.setIsActive(request.getIsActive());
         productRepository.save(product);

@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Container, Table, Badge, Alert, Spinner, Button, Modal, Form } from "react-bootstrap";
 import { getOrder, cancelOrder, createPaymentUrl } from "../services/orderService";
 import { createReview, listMyOrderReviews } from "../../product_management_module/services/reviewService";
+import { formatPackage } from "../../../common/utils/measure";
 
 const STATUS_LABELS = {
   CREATED: { label: "Đang xử lý", variant: "secondary" },
@@ -198,8 +199,11 @@ export default function OrderDetailPage() {
             return (
               <tr key={item.orderItemId}>
                 <td>{item.productName ?? `Sản phẩm #${item.productId}`}</td>
-                <td>{item.quantity}</td>
-                <td>{Number(item.priceAtPurchase).toLocaleString("vi-VN")} đ</td>
+                <td>{item.quantity} x {formatPackage(item)}</td>
+                <td>
+                  {Number(item.priceAtPurchase).toLocaleString("vi-VN")} đ/
+                  {formatPackage(item)}
+                </td>
                 <td>{Number(item.subtotal).toLocaleString("vi-VN")} đ</td>
                 <td>
                   {reviewed ? (

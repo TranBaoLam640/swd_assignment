@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import com.freshmart.backend.enums.product_management_module.PriceUnit;
 
 /** Response for customer product browsing (UC9/UC10) and manager product CRUD. */
 @Getter
@@ -21,6 +22,8 @@ public class ProductResponse {
     private String productName;
     private String description;
     private BigDecimal price;
+    private PriceUnit priceUnit;
+    private Integer priceQuantityGrams;
     private String imageUrl;
     private Boolean isActive;
     private Double averageRating;

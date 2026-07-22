@@ -136,8 +136,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         BigDecimal total = cartItems.stream()
-                .map(item -> productsById.get(item.getProductId()).getPrice()
-                        .multiply(BigDecimal.valueOf(item.getQuantity())))
+                .map(item -> calculateLineTotal(productsById.get(item.getProductId()), item.getQuantity()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         Order order = new Order();
@@ -161,7 +160,8 @@ public class OrderServiceImpl implements OrderService {
         // BR-14/BR-16/BR-18: revalidate + lock stock now, inside the same transaction —
         // if any line is short, InsufficientStockException rolls back the whole checkout.
         for (CartItem item : cartItems) {
-            inventoryService.decreaseStock(item.getProductId(), item.getQuantity());
+            Product product = productsById.get(item.getProductId());
+            inventoryService.decreaseStock(item.getProductId(), item.getQuantity() * getPackageGrams(product));
         }
         orderStateMachine.transition(order, OrderStatus.FRUIT_HELD);
 
@@ -200,8 +200,11 @@ public class OrderServiceImpl implements OrderService {
 
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
         // BR-17: release whatever stock this order had reserved.
+        Map<Long, Product> productsById = loadProducts(items);
         for (OrderItem item : items) {
-            inventoryService.increaseStock(item.getProductId(), item.getQuantity());
+            inventoryService.increaseStock(
+                    item.getProductId(),
+                    item.getQuantity() * getPackageGrams(productsById.get(item.getProductId())));
         }
 
         order.setCancelReason(request.getReason());
@@ -265,8 +268,11 @@ public class OrderServiceImpl implements OrderService {
 
             List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
             // BR-17: release whatever stock this order had reserved.
+            Map<Long, Product> productsById = loadProducts(items);
             for (OrderItem item : items) {
-                inventoryService.increaseStock(item.getProductId(), item.getQuantity());
+                inventoryService.increaseStock(
+                        item.getProductId(),
+                        item.getQuantity() * getPackageGrams(productsById.get(item.getProductId())));
             }
 
             order.setPaymentStatus(PaymentStatus.FAILED);
@@ -298,5 +304,13 @@ public class OrderServiceImpl implements OrderService {
                 .findAllById(items.stream().map(OrderItem::getProductId).toList())
                 .stream()
                 .collect(Collectors.toMap(Product::getId, p -> p));
+    }
+
+    private BigDecimal calculateLineTotal(Product product, Integer quantity) {
+        return product.getPrice().multiply(BigDecimal.valueOf(quantity));
+    }
+
+    private int getPackageGrams(Product product) {
+        return product.getPriceQuantityGrams() == null ? 1000 : product.getPriceQuantityGrams();
     }
 }

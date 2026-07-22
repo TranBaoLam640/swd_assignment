@@ -5,8 +5,11 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.freshmart.backend.common.exception.ResourceNotFoundException;
 import com.freshmart.backend.data_access.entity.CartItem;
+import com.freshmart.backend.data_access.entity.Product;
 import com.freshmart.backend.data_access.repository.cart_management_module.CartItemRepository;
+import com.freshmart.backend.data_access.repository.product_management_module.ProductRepository;
 import com.freshmart.backend.dto.request.cart_management_module.AddToCartRequest;
 import com.freshmart.backend.dto.request.cart_management_module.UpdateCartItemRequest;
 import com.freshmart.backend.dto.response.cart_management_module.CartItemResponse;
@@ -30,13 +33,16 @@ public class CartServiceImpl implements CartService {
     private final CartItemRepository cartItemRepository;
     private final CartItemMapper cartItemMapper;
     private final InventoryService inventoryService;
+    private final ProductRepository productRepository;
 
     public CartServiceImpl(CartItemRepository cartItemRepository,
                             CartItemMapper cartItemMapper,
-                            InventoryService inventoryService) {
+                            InventoryService inventoryService,
+                            ProductRepository productRepository) {
         this.cartItemRepository = cartItemRepository;
         this.cartItemMapper = cartItemMapper;
         this.inventoryService = inventoryService;
+        this.productRepository = productRepository;
     }
 
     @Override
@@ -92,8 +98,12 @@ public class CartServiceImpl implements CartService {
     }
 
     private void checkStock(Long productId, int requestedQuantity) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> ResourceNotFoundException.of("Product", productId));
         int stock = inventoryService.getByProduct(productId).getStockQuantity();
-        if (requestedQuantity > stock) {
+        int packageGrams = product.getPriceQuantityGrams() == null ? 1000 : product.getPriceQuantityGrams();
+        int requestedGrams = requestedQuantity * packageGrams;
+        if (requestedGrams > stock) {
             throw new CartQuantityExceedsStockException(stock);
         }
     }

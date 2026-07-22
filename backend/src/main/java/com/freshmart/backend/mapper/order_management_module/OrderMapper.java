@@ -11,6 +11,7 @@ import com.freshmart.backend.data_access.entity.OrderItem;
 import com.freshmart.backend.data_access.entity.Product;
 import com.freshmart.backend.dto.response.order_management_module.OrderItemResponse;
 import com.freshmart.backend.dto.response.order_management_module.OrderResponse;
+import com.freshmart.backend.enums.product_management_module.PriceUnit;
 
 @Component
 public class OrderMapper {
@@ -39,7 +40,13 @@ public class OrderMapper {
                 product != null ? product.getProductName() : null,
                 item.getQuantity(),
                 item.getPriceAtPurchase(),
-                item.getPriceAtPurchase().multiply(BigDecimal.valueOf(item.getQuantity()))
+                product != null ? product.getPriceUnit() : PriceUnit.KG,
+                product != null ? product.getPriceQuantityGrams() : 1000,
+                calculateSubtotal(item, product)
         );
+    }
+
+    private BigDecimal calculateSubtotal(OrderItem item, Product product) {
+        return item.getPriceAtPurchase().multiply(BigDecimal.valueOf(item.getQuantity()));
     }
 }

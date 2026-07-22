@@ -29,6 +29,8 @@ public class ProductMapper {
                 product.getProductName(),
                 product.getDescription(),
                 product.getPrice(),
+                product.getPriceUnit(),
+                product.getPriceQuantityGrams(),
                 product.getImageUrl(),
                 product.getIsActive(),
                 averageRating,

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Container, Table, Button, Alert, Spinner, Badge, Form, InputGroup } from "react-bootstrap";
 import { listAllProductsForManager } from "../services/productService";
 import { getStock, increaseStock, decreaseStock, setStock } from "../../inventory_management_module/services/inventoryService";
+import { formatUnitPrice } from "../../../common/utils/measure";
 
 export default function ManagerProductListPage() {
   const [products, setProducts] = useState([]);
@@ -117,7 +118,7 @@ export default function ManagerProductListPage() {
                 <td>{product.productName}</td>
                 <td>{product.shopName ?? `#${product.shopId}`}</td>
                 <td>{product.categoryName ?? "-"}</td>
-                <td>{Number(product.price ?? 0).toLocaleString("vi-VN")} đ</td>
+                <td>{formatUnitPrice(product)}</td>
                 <td>
                   <Badge bg={product.isActive ? "success" : "secondary"}>
                     {product.isActive ? "Đang bán" : "Đã ẩn"}
@@ -125,7 +126,9 @@ export default function ManagerProductListPage() {
                 </td>
                 <td>
                   <div className="d-flex align-items-center gap-2">
-                    <strong>{stockByProduct[product.productId] ?? "-"}</strong>
+                    <strong>
+                      {stockByProduct[product.productId] ?? "-"}
+                    </strong>
                     <InputGroup size="sm" style={{ width: 190 }}>
                       <Form.Control
                         type="number"
