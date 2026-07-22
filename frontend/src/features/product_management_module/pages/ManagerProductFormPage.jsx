@@ -16,6 +16,8 @@ export default function ManagerProductFormPage() {
     productName: "",
     description: "",
     price: "",
+    priceUnit: "KG",
+    priceQuantity: "1",
     imageUrl: "",
     isActive: true,
   });
@@ -66,6 +68,11 @@ export default function ManagerProductFormPage() {
         productName: product.productName ?? "",
         description: product.description ?? "",
         price: product.price ?? "",
+        priceUnit: product.priceUnit ?? "KG",
+        priceQuantity:
+          product.priceUnit === "G"
+            ? String(product.priceQuantityGrams ?? 1)
+            : String((product.priceQuantityGrams ?? 1000) / 1000),
         imageUrl: product.imageUrl ?? "",
         isActive: product.isActive,
       });
@@ -78,7 +85,23 @@ export default function ManagerProductFormPage() {
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    setFormData((prev) => {
+      if (name === "priceUnit") {
+        return { ...prev, priceUnit: value, priceQuantity: value === "G" ? "500" : "1" };
+      }
+      if (name === "priceQuantity" && prev.priceUnit === "KG" && value.includes(".")) {
+        const [whole, decimal = ""] = value.split(".");
+        return { ...prev, priceQuantity: `${whole}.${decimal.slice(0, 1)}` };
+      }
+      return { ...prev, [name]: type === "checkbox" ? checked : value };
+    });
+  }
+
+  function getPriceQuantityGrams() {
+    const quantity = Number(formData.priceQuantity);
+    return formData.priceUnit === "G"
+      ? Math.round(quantity)
+      : Math.round(Math.round(quantity * 10) * 100);
   }
 
   async function handleSubmit(e) {
@@ -92,6 +115,8 @@ export default function ManagerProductFormPage() {
           productName: formData.productName,
           description: formData.description,
           price: Number(formData.price),
+          priceUnit: formData.priceUnit,
+          priceQuantityGrams: getPriceQuantityGrams(),
           imageUrl: formData.imageUrl,
           isActive: formData.isActive,
         });
@@ -102,6 +127,8 @@ export default function ManagerProductFormPage() {
           productName: formData.productName,
           description: formData.description,
           price: Number(formData.price),
+          priceUnit: formData.priceUnit,
+          priceQuantityGrams: getPriceQuantityGrams(),
           imageUrl: formData.imageUrl,
         });
       }
@@ -201,6 +228,32 @@ export default function ManagerProductFormPage() {
                 onChange={handleChange}
                 required
               />
+            </Form.Group>
+
+            <Form.Group className="mb-3" controlId="productPriceUnit">
+              <Form.Label>Đơn vị giá</Form.Label>
+              <Form.Select name="priceUnit" value={formData.priceUnit} onChange={handleChange}>
+                <option value="KG">Giá theo kg</option>
+                <option value="G">Giá theo g</option>
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3" controlId="productPriceQuantity">
+              <Form.Label>Số lượng</Form.Label>
+              <Form.Control
+                type="number"
+                min={formData.priceUnit === "G" ? 1 : 0.1}
+                step={formData.priceUnit === "G" ? 1 : 0.1}
+                name="priceQuantity"
+                value={formData.priceQuantity}
+                onChange={handleChange}
+                required
+              />
+              <Form.Text muted>
+                {formData.priceUnit === "G"
+                  ? "Ví dụ: 500 nghĩa là giá bán cho 500g."
+                  : "Ví dụ: 1.3 nghĩa là giá bán cho 1.3kg."}
+              </Form.Text>
             </Form.Group>
 
             <Form.Group className="mb-3" controlId="productImageUrl">

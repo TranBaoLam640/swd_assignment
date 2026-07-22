@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Container, Row, Col, Card, Button, Alert, Spinner, Badge, Form, InputGroup } from "react-bootstrap";
 import { browseProducts } from "../services/productService";
 import { listCategories } from "../services/categoryService";
 import RatingStars from "../components/RatingStars";
+import { formatUnitPrice, getPackageGrams } from "../../../common/utils/measure";
 import {
   addToCart,
   viewCart,
@@ -11,6 +12,8 @@ import {
   removeCartItem,
 } from "../../cart_management_module/services/cartService";
 import { useAuth, useCart } from "../../../app/context";
+
+const PRODUCTS_PER_PAGE = 8;
 
 /**
  * Customer storefront / home page — UC09 (Browse & Search Product) + UC11
@@ -35,6 +38,10 @@ export default function ProductListPage() {
   const [categories, setCategories] = useState([]);
   const [keywordInput, setKeywordInput] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [minRating, setMinRating] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -43,6 +50,29 @@ export default function ProductListPage() {
   const [busyProductId, setBusyProductId] = useState(null);
   const { user, isAuthenticated } = useAuth();
   const { refreshCartCount } = useCart();
+
+  const filteredProducts = useMemo(() => {
+    const min = minPrice === "" ? null : Number(minPrice);
+    const max = maxPrice === "" ? null : Number(maxPrice);
+    const rating = minRating === "" ? null : Number(minRating);
+
+    return products.filter((product) => {
+      const price = Number(product.price ?? 0);
+      const averageRating = Number(product.averageRating ?? 0);
+
+      if (min !== null && price < min) return false;
+      if (max !== null && price > max) return false;
+      if (rating !== null && averageRating < rating) return false;
+      return true;
+    });
+  }, [products, minPrice, maxPrice, minRating]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE));
+
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
+    return filteredProducts.slice(start, start + PRODUCTS_PER_PAGE);
+  }, [filteredProducts, currentPage]);
 
   useEffect(() => {
     loadProducts();
@@ -54,6 +84,16 @@ export default function ProductListPage() {
     loadCartQuantities();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [minPrice, maxPrice, minRating]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   async function loadProducts(filters = {}) {
     setLoading(true);
@@ -109,7 +149,19 @@ export default function ProductListPage() {
 
   function runSearch(keyword, catId) {
     setHasSearched(Boolean(keyword) || Boolean(catId));
+    setCurrentPage(1);
     loadProducts({ keyword, categoryId: catId || undefined });
+  }
+
+  function handleClearFilters() {
+    setKeywordInput("");
+    setCategoryId("");
+    setMinPrice("");
+    setMaxPrice("");
+    setMinRating("");
+    setCurrentPage(1);
+    setHasSearched(false);
+    loadProducts();
   }
 
   async function handleIncrease(product) {
@@ -117,10 +169,11 @@ export default function ProductListPage() {
     const existing = cartQuantities[product.productId];
     const currentQty = existing ? existing.quantity : 0;
     const stock = product.stockQuantity ?? 0;
+    const maxQuantity = Math.floor(stock / getPackageGrams(product));
 
-    if (currentQty + 1 > stock) {
+    if (currentQty + 1 > maxQuantity) {
       setError(
-        `Không thể thêm quá số lượng hiện có trong kho — "${product.productName}" chỉ còn lại ${stock} sản phẩm.`
+        `Không thể thêm quá số lượng hiện có trong kho — "${product.productName}" chỉ còn lại ${stock}.`
       );
       return;
     }
@@ -185,7 +238,7 @@ export default function ProductListPage() {
 
       <Form onSubmit={handleSearchSubmit} className="fm-filter-bar mb-4">
         <Row className="g-2 align-items-end">
-          <Col xs={12} md={6}>
+          <Col xs={12} md={5}>
             <Form.Label className="small text-muted mb-1">Tìm kiếm sản phẩm</Form.Label>
             <InputGroup>
               <Form.Control
@@ -199,7 +252,7 @@ export default function ProductListPage() {
               </Button>
             </InputGroup>
           </Col>
-          <Col xs={12} md={4}>
+          <Col xs={12} md={3}>
             <Form.Label className="small text-muted mb-1">Danh mục</Form.Label>
             <Form.Select value={categoryId} onChange={handleCategoryChange}>
               <option value="">Tất cả danh mục</option>
@@ -209,6 +262,44 @@ export default function ProductListPage() {
                 </option>
               ))}
             </Form.Select>
+          </Col>
+          <Col xs={6} md={2}>
+            <Form.Label className="small text-muted mb-1">Giá từ</Form.Label>
+            <Form.Control
+              type="number"
+              min="0"
+              inputMode="numeric"
+              placeholder="0"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+            />
+          </Col>
+          <Col xs={6} md={2}>
+            <Form.Label className="small text-muted mb-1">Giá đến</Form.Label>
+            <Form.Control
+              type="number"
+              min="0"
+              inputMode="numeric"
+              placeholder="500000"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+            />
+          </Col>
+          <Col xs={12} md={3}>
+            <Form.Label className="small text-muted mb-1">Số sao tối thiểu</Form.Label>
+            <Form.Select value={minRating} onChange={(e) => setMinRating(e.target.value)}>
+              <option value="">Tất cả đánh giá</option>
+              {[5, 4, 3, 2, 1].map((rating) => (
+                <option key={rating} value={rating}>
+                  Từ {rating} sao
+                </option>
+              ))}
+            </Form.Select>
+          </Col>
+          <Col xs={12} md="auto">
+            <Button type="button" variant="outline-secondary" onClick={handleClearFilters}>
+              Xóa lọc
+            </Button>
           </Col>
         </Row>
       </Form>
@@ -221,9 +312,9 @@ export default function ProductListPage() {
         <>
           {error && <Alert variant="danger">{error}</Alert>}
 
-          {products.length === 0 ? (
+          {filteredProducts.length === 0 ? (
             <Alert variant="light" className="border text-center">
-              {hasSearched ? (
+              {hasSearched || minPrice || maxPrice || minRating ? (
                 <>
                   Không tìm thấy sản phẩm phù hợp với tiêu chí của bạn.
                   <div className="text-muted small mt-1">
@@ -235,8 +326,9 @@ export default function ProductListPage() {
               )}
             </Alert>
           ) : (
-            <Row xs={1} sm={2} md={3} lg={4} className="g-4">
-              {products.map((product) => {
+            <>
+              <Row xs={1} sm={2} md={3} lg={4} className="g-4">
+                {paginatedProducts.map((product) => {
                 const inCart = cartQuantities[product.productId];
                 const isBusy = busyProductId === product.productId;
 
@@ -262,7 +354,7 @@ export default function ProductListPage() {
                             />
                           </div>
                           <Card.Text className="text-success fw-bold mb-0">
-                            {Number(product.price ?? 0).toLocaleString("vi-VN")} đ
+                            {formatUnitPrice(product)}
                           </Card.Text>
                         </Card.Body>
                       </Link>
@@ -310,8 +402,43 @@ export default function ProductListPage() {
                     </Card>
                   </Col>
                 );
-              })}
-            </Row>
+                })}
+              </Row>
+
+              {totalPages > 1 && (
+                <div className="d-flex justify-content-center align-items-center gap-2 mt-4">
+                  <Button
+                    type="button"
+                    variant="outline-success"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  >
+                    Trước
+                  </Button>
+                  {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                    <Button
+                      key={page}
+                      type="button"
+                      variant={page === currentPage ? "success" : "outline-success"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline-success"
+                    size="sm"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  >
+                    Sau
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}

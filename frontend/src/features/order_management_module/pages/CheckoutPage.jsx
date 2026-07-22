@@ -7,6 +7,7 @@ import { checkout, createPaymentUrl } from "../services/orderService";
 import { listAddresses } from "../../address_management_module/services/addressService";
 import AddressSelector from "../../address_management_module/components/AddressSelector";
 import { useCart } from "../../../app/context";
+import { calculateLineTotal, formatPackage } from "../../../common/utils/measure";
 
 /**
  * Checkout page — UC33 (Checkout and Place Order).
@@ -105,7 +106,7 @@ export default function CheckoutPage() {
   }
 
   const total = items.reduce(
-    (sum, item) => sum + (item.product?.price ?? 0) * item.quantity,
+    (sum, item) => sum + calculateLineTotal(item.product, item.quantity),
     0
   );
 
@@ -145,8 +146,8 @@ export default function CheckoutPage() {
           {items.map((item) => (
             <tr key={item.cartItemId}>
               <td>{item.product?.productName ?? `Sản phẩm #${item.productId}`}</td>
-              <td>{item.quantity}</td>
-              <td>{Number((item.product?.price ?? 0) * item.quantity).toLocaleString("vi-VN")} đ</td>
+              <td>{item.quantity} x {formatPackage(item.product)}</td>
+              <td>{Number(calculateLineTotal(item.product, item.quantity)).toLocaleString("vi-VN")} đ</td>
             </tr>
           ))}
         </tbody>

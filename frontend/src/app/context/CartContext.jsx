@@ -23,7 +23,7 @@ export function CartProvider({ children }) {
     }
     try {
       const items = await viewCart();
-      setCartCount((items ?? []).reduce((sum, item) => sum + item.quantity, 0));
+      setCartCount((items ?? []).length);
     } catch {
       setCartCount(0);
     }

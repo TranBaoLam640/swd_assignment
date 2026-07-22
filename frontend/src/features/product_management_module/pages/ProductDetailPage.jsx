@@ -6,6 +6,7 @@ import { getProduct } from "../services/productService";
 import { listProductReviews } from "../services/reviewService";
 import { addToCart, viewCart } from "../../cart_management_module/services/cartService";
 import { useAuth, useCart } from "../../../app/context";
+import { formatPackage, formatUnitPrice, getPackageGrams } from "../../../common/utils/measure";
 
 export default function ProductDetailPage() {
   const { productId } = useParams();
@@ -35,6 +36,7 @@ export default function ProductDetailPage() {
         listProductReviews(productId).catch(() => []),
       ]);
       setProduct(productData);
+      setQuantity(1);
       setReviews(reviewList ?? []);
     } catch (err) {
       setError(err.message);
@@ -62,11 +64,12 @@ export default function ProductDetailPage() {
     setMessage("");
 
     const stock = product?.stockQuantity ?? 0;
-    const remaining = stock - cartQuantity;
+    const maxQuantity = Math.floor(stock / getPackageGrams(product));
+    const remaining = maxQuantity - cartQuantity;
     if (quantity > remaining) {
       setError(
         remaining > 0
-          ? `Không thể thêm quá số lượng còn trong kho. Bạn chỉ có thể thêm tối đa ${remaining} sản phẩm nữa.`
+          ? `Không thể thêm quá số lượng còn trong kho. Bạn chỉ có thể thêm tối đa ${remaining} nữa.`
           : `Không thể thêm vì số lượng trong giỏ hàng đã bằng số lượng tồn kho (${stock}).`
       );
       return;
@@ -103,7 +106,7 @@ export default function ProductDetailPage() {
   }
 
   const stock = product.stockQuantity ?? 0;
-  const remaining = Math.max(0, stock - cartQuantity);
+  const remaining = Math.max(0, Math.floor(stock / getPackageGrams(product)) - cartQuantity);
 
   return (
     <Container className="py-4">
@@ -132,12 +135,11 @@ export default function ProductDetailPage() {
           </Badge>
           <p className="text-muted">{product.description || "Chưa có mô tả."}</p>
           <h4 className="text-success fw-bold">
-            {Number(product.price ?? 0).toLocaleString("vi-VN")} đ
+            {formatUnitPrice(product)}
           </h4>
-          <p className="text-muted small mb-3">
-            Còn lại trong kho: {stock} sản phẩm
-            {cartQuantity > 0 && ` (giỏ hàng của bạn đã có ${cartQuantity})`}
-          </p>
+          {cartQuantity > 0 && (
+            <p className="text-muted small mb-3">Giỏ hàng của bạn đã có {cartQuantity}</p>
+          )}
 
           {isAuthenticated && user?.role === "CUSTOMER" ? (
             <div className="d-flex align-items-center gap-2 mt-3" style={{ maxWidth: 320 }}>
@@ -145,9 +147,11 @@ export default function ProductDetailPage() {
                 type="number"
                 min={1}
                 max={Math.max(1, remaining)}
+                step={1}
                 value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
+                onChange={(e) => setQuantity(Math.max(1, Math.floor(Number(e.target.value))))}
               />
+              <span className="text-muted small text-nowrap">x {formatPackage(product)}</span>
               <Button
                 variant="success"
                 disabled={adding || remaining <= 0}

@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import com.freshmart.backend.enums.product_management_module.PriceUnit;
 
 /** One product line within an order, matching order_item (SDS 2.2.12). */
 @Getter
@@ -18,5 +19,7 @@ public class OrderItemResponse {
     private String productName;
     private Integer quantity;
     private BigDecimal priceAtPurchase;
+    private PriceUnit priceUnit;
+    private Integer priceQuantityGrams;
     private BigDecimal subtotal;
 }

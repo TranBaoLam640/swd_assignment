@@ -4,10 +4,13 @@ import java.math.BigDecimal;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import com.freshmart.backend.enums.product_management_module.PriceUnit;
 
 /**
  * Matches the "product" table exactly as documented in SDS 2.2.6:
@@ -52,6 +55,13 @@ public class Product extends BaseEntity {
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "price_unit", nullable = false, length = 10)
+    private PriceUnit priceUnit = PriceUnit.KG;
+
+    @Column(name = "price_quantity_grams", nullable = false)
+    private Integer priceQuantityGrams = 1000;
 
     @Column(name = "image_url", length = 255)
     private String imageUrl;

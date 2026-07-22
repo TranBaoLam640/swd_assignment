@@ -103,6 +103,8 @@ CREATE TABLE product (
   product_name VARCHAR(255)  NOT NULL,
   description  VARCHAR(255),
   price        DECIMAL(10,2) NOT NULL,
+  price_unit   VARCHAR(10)   NOT NULL DEFAULT 'KG',
+  price_quantity_grams INT    NOT NULL DEFAULT 1000,
   image_url    VARCHAR(255),
   is_active    TINYINT(1)    NOT NULL,
   PRIMARY KEY (id)
@@ -113,7 +115,7 @@ CREATE TABLE inventory (
   created_at     DATETIME(6) NOT NULL,
   updated_at     DATETIME(6) NOT NULL,
   product_id     BIGINT      NOT NULL,
-  stock_quantity INT         NOT NULL,
+  stock_quantity INT         NOT NULL COMMENT 'Stored in grams',
   PRIMARY KEY (id),
   UNIQUE KEY uk_inventory_product (product_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -124,7 +126,7 @@ CREATE TABLE cart_items (
   updated_at DATETIME(6) NOT NULL,
   user_id    BIGINT      NOT NULL,
   product_id BIGINT      NOT NULL,
-  quantity   INT         NOT NULL,
+  quantity   INT         NOT NULL COMMENT 'Number of sale units/packages',
   PRIMARY KEY (id),
   UNIQUE KEY uk_cart_user_product (user_id, product_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -149,7 +151,7 @@ CREATE TABLE order_item (
   updated_at        DATETIME(6)   NOT NULL,
   order_id          BIGINT        NOT NULL,
   product_id        BIGINT        NOT NULL,
-  quantity          INT           NOT NULL,
+  quantity          INT           NOT NULL COMMENT 'Number of sale units/packages',
   price_at_purchase DECIMAL(10,2) NOT NULL,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -204,7 +206,7 @@ INSERT IGNORE INTO role (created_at, updated_at, role_name) VALUES
 -- (already bcrypt-hashed — log in directly, no need to /register these)
 
 -- 1 Manager: creates/edits products, manages stock.
-INSERT INTO users (created_at, updated_at, email, password_hash, full_name, phone_number, status, role_id)
+INSERT IGNORE INTO users (created_at, updated_at, email, password_hash, full_name, phone_number, status, role_id)
 VALUES (
   NOW(6), NOW(6),
   'manager@freshmart.test',
@@ -216,7 +218,7 @@ VALUES (
 );
 
 -- 2 Customers: browse/cart/checkout/orders.
-INSERT INTO users (created_at, updated_at, email, password_hash, full_name, phone_number, status, role_id)
+INSERT IGNORE INTO users (created_at, updated_at, email, password_hash, full_name, phone_number, status, role_id)
 VALUES (
   NOW(6), NOW(6),
   'customer1@freshmart.test',
@@ -227,7 +229,7 @@ VALUES (
   (SELECT id FROM role WHERE role_name = 'CUSTOMER')
 );
 
-INSERT INTO users (created_at, updated_at, email, password_hash, full_name, phone_number, status, role_id)
+INSERT IGNORE INTO users (created_at, updated_at, email, password_hash, full_name, phone_number, status, role_id)
 VALUES (
   NOW(6), NOW(6),
   'customer2@freshmart.test',
@@ -236,6 +238,58 @@ VALUES (
   '0900000003',
   'ACTIVE',
   (SELECT id FROM role WHERE role_name = 'CUSTOMER')
+);
+
+-- --- Shops -----------------------------------------------------------
+INSERT IGNORE INTO shop (created_at, updated_at, owner_id, shop_name, shop_address, shop_description, status)
+VALUES (
+  NOW(6), NOW(6),
+  (SELECT id FROM users WHERE email = 'manager@freshmart.test'),
+  'FreshMart Main Shop',
+  '123 Nguyen Trai, District 1, Ho Chi Minh City',
+  'Fresh fruit shop for local and imported produce.',
+  'ACTIVE'
+);
+
+-- Hibernate-created schemas may have these new NOT NULL columns without
+-- database defaults. Keep the seed runnable whether the schema came from
+-- section 2 above or from Hibernate ddl-auto=update.
+ALTER TABLE product
+  MODIFY price_unit ENUM('G','KG') NOT NULL DEFAULT 'KG',
+  MODIFY price_quantity_grams INT NOT NULL DEFAULT 1000;
+
+-- Delete only this script's catalog rows before re-seeding so repeated runs
+-- do not duplicate products. Orders/cart_items/payment are not seeded here,
+-- so this is intended for fresh/manual test databases.
+DELETE FROM inventory
+WHERE product_id IN (
+  SELECT id FROM product
+  WHERE product_name IN (
+    'Táo Envy Mỹ', 'Cam sành Hà Giang', 'Xoài cát Hòa Lộc', 'Nho xanh không hạt',
+    'Dâu tây Đà Lạt', 'Chuối già Nam Mỹ', 'Lê Hàn Quốc (ngừng bán)', 'Táo Gala New Zealand',
+    'Táo Fuji Nhật Bản', 'Táo Granny Smith', 'Lê Nam Phi', 'Lê Nhật Bản',
+    'Hồng giòn Hàn Quốc', 'Kiwi xanh New Zealand', 'Kiwi vàng Zespri', 'Xoài keo Campuchia',
+    'Xoài tượng Bình Định', 'Bưởi da xanh Bến Tre', 'Bưởi năm roi Vĩnh Long', 'Dưa hấu Long An',
+    'Dưa hấu không hạt', 'Dưa lưới ruột cam', 'Dưa gang miền Tây', 'Nho đỏ không hạt Mỹ',
+    'Nho đen Autumn Crisp', 'Cherry Mỹ size 9.5', 'Cherry New Zealand', 'Việt quất tươi',
+    'Phúc bồn tử đỏ', 'Dâu tằm Đà Lạt', 'Thanh long ruột đỏ', 'Thanh long ruột trắng',
+    'Măng cụt Thái Lan', 'Sầu riêng Ri6 tách múi', 'Mít Thái bóc sẵn', 'Ổi lê Đài Loan',
+    'Mận An Phước', 'Chôm chôm nhãn', 'Nhãn xuồng cơm vàng', 'Vải thiều Lục Ngạn'
+  )
+);
+
+DELETE FROM product
+WHERE product_name IN (
+  'Táo Envy Mỹ', 'Cam sành Hà Giang', 'Xoài cát Hòa Lộc', 'Nho xanh không hạt',
+  'Dâu tây Đà Lạt', 'Chuối già Nam Mỹ', 'Lê Hàn Quốc (ngừng bán)', 'Táo Gala New Zealand',
+  'Táo Fuji Nhật Bản', 'Táo Granny Smith', 'Lê Nam Phi', 'Lê Nhật Bản',
+  'Hồng giòn Hàn Quốc', 'Kiwi xanh New Zealand', 'Kiwi vàng Zespri', 'Xoài keo Campuchia',
+  'Xoài tượng Bình Định', 'Bưởi da xanh Bến Tre', 'Bưởi năm roi Vĩnh Long', 'Dưa hấu Long An',
+  'Dưa hấu không hạt', 'Dưa lưới ruột cam', 'Dưa gang miền Tây', 'Nho đỏ không hạt Mỹ',
+  'Nho đen Autumn Crisp', 'Cherry Mỹ size 9.5', 'Cherry New Zealand', 'Việt quất tươi',
+  'Phúc bồn tử đỏ', 'Dâu tằm Đà Lạt', 'Thanh long ruột đỏ', 'Thanh long ruột trắng',
+  'Măng cụt Thái Lan', 'Sầu riêng Ri6 tách múi', 'Mít Thái bóc sẵn', 'Ổi lê Đài Loan',
+  'Mận An Phước', 'Chôm chôm nhãn', 'Nhãn xuồng cơm vàng', 'Vải thiều Lục Ngạn'
 );
 
 -- --- Products (shop_id/category_id are just placeholder numbers — there
@@ -250,25 +304,67 @@ INSERT INTO product (created_at, updated_at, shop_id, category_id, product_name,
   (NOW(6), NOW(6), 1, 2, 'Nho xanh không hạt',  'Nho nhập khẩu, giòn, không hạt.',           120000.00, 'http://localhost:8080/images/nho_xanh.jpg',   1),
   (NOW(6), NOW(6), 1, 3, 'Dâu tây Đà Lạt',      'Dâu tây tươi, size lớn, vị chua ngọt.',     90000.00, 'http://localhost:8080/images/dau_tay.jpg',    1),
   (NOW(6), NOW(6), 1, 3, 'Chuối già Nam Mỹ',    'Chuối chín vừa, ngọt tự nhiên.',            25000.00, 'http://localhost:8080/images/chuoi.jpg',      1),
-  (NOW(6), NOW(6), 1, 1, 'Lê Hàn Quốc (ngừng bán)', 'Sản phẩm mẫu đã ẩn để test trạng thái ngừng bán.', 55000.00, 'https://placehold.co/400x300?text=Le+Han',      0);
+  (NOW(6), NOW(6), 1, 1, 'Lê Hàn Quốc (ngừng bán)', 'Sản phẩm mẫu đã ẩn để test trạng thái ngừng bán.', 55000.00, 'https://placehold.co/400x300?text=Le+Han',      0),
+  (NOW(6), NOW(6), 1, 1, 'Táo Gala New Zealand', 'Táo Gala giòn ngọt, phù hợp ăn vặt mỗi ngày.', 59000.00, 'https://loremflickr.com/600/400/gala,apple,fruit', 1),
+  (NOW(6), NOW(6), 1, 1, 'Táo Fuji Nhật Bản', 'Táo Fuji thơm, vị ngọt đậm và độ giòn cao.', 85000.00, 'https://loremflickr.com/600/400/fuji,apple,fruit', 1),
+  (NOW(6), NOW(6), 1, 1, 'Táo Granny Smith', 'Táo xanh chua nhẹ, giòn, hợp làm salad.', 72000.00, 'https://loremflickr.com/600/400/green,apple,fruit', 1),
+  (NOW(6), NOW(6), 1, 1, 'Lê Nam Phi', 'Lê tươi nhiều nước, vị thanh mát.', 62000.00, 'https://loremflickr.com/600/400/pear,fruit', 1),
+  (NOW(6), NOW(6), 1, 1, 'Lê Nhật Bản', 'Lê size lớn, thịt trắng, ngọt dịu.', 98000.00, 'https://loremflickr.com/600/400/japanese,pear,fruit', 1),
+  (NOW(6), NOW(6), 1, 1, 'Hồng giòn Hàn Quốc', 'Hồng giòn ngọt, ít chát, màu cam đẹp.', 78000.00, 'https://loremflickr.com/600/400/persimmon,fruit', 1),
+  (NOW(6), NOW(6), 1, 1, 'Kiwi xanh New Zealand', 'Kiwi xanh chua ngọt, giàu vitamin C.', 110000.00, 'https://loremflickr.com/600/400/kiwi,fruit', 1),
+  (NOW(6), NOW(6), 1, 1, 'Kiwi vàng Zespri', 'Kiwi vàng mềm ngọt, hương thơm đặc trưng.', 135000.00, 'https://loremflickr.com/600/400/golden,kiwi,fruit', 1),
+  (NOW(6), NOW(6), 1, 2, 'Xoài keo Campuchia', 'Xoài keo giòn, chua ngọt, chấm muối ớt rất hợp.', 42000.00, 'https://loremflickr.com/600/400/mango,fruit', 1),
+  (NOW(6), NOW(6), 1, 2, 'Xoài tượng Bình Định', 'Xoài trái lớn, cơm dày, ăn xanh hoặc chín đều ngon.', 48000.00, 'https://loremflickr.com/600/400/green,mango,fruit', 1),
+  (NOW(6), NOW(6), 1, 2, 'Bưởi da xanh Bến Tre', 'Bưởi da xanh múi hồng, ngọt thanh, ít hạt.', 68000.00, 'https://loremflickr.com/600/400/pomelo,fruit', 1),
+  (NOW(6), NOW(6), 1, 2, 'Bưởi năm roi Vĩnh Long', 'Bưởi năm roi mọng nước, vị thanh mát.', 52000.00, 'https://loremflickr.com/600/400/grapefruit,fruit', 1),
+  (NOW(6), NOW(6), 1, 2, 'Dưa hấu Long An', 'Dưa hấu ruột đỏ, ngọt mát, trái chắc.', 18000.00, 'https://loremflickr.com/600/400/watermelon,fruit', 1),
+  (NOW(6), NOW(6), 1, 2, 'Dưa hấu không hạt', 'Dưa hấu không hạt tiện lợi, phù hợp tiệc gia đình.', 28000.00, 'https://loremflickr.com/600/400/seedless,watermelon,fruit', 1),
+  (NOW(6), NOW(6), 1, 2, 'Dưa lưới ruột cam', 'Dưa lưới thơm, ruột cam ngọt đậm.', 45000.00, 'https://loremflickr.com/600/400/cantaloupe,melon,fruit', 1),
+  (NOW(6), NOW(6), 1, 2, 'Dưa gang miền Tây', 'Dưa gang mềm thơm, hợp làm sinh tố.', 32000.00, 'https://loremflickr.com/600/400/melon,fruit', 1),
+  (NOW(6), NOW(6), 1, 3, 'Nho đỏ không hạt Mỹ', 'Nho đỏ ngọt, vỏ mỏng, không hạt.', 125000.00, 'https://loremflickr.com/600/400/red,grapes,fruit', 1),
+  (NOW(6), NOW(6), 1, 3, 'Nho đen Autumn Crisp', 'Nho đen trái lớn, giòn, ngọt sâu.', 145000.00, 'https://loremflickr.com/600/400/black,grapes,fruit', 1),
+  (NOW(6), NOW(6), 1, 3, 'Cherry Mỹ size 9.5', 'Cherry Mỹ quả lớn, giòn ngọt, màu đỏ đậm.', 320000.00, 'https://loremflickr.com/600/400/cherry,fruit', 1),
+  (NOW(6), NOW(6), 1, 3, 'Cherry New Zealand', 'Cherry New Zealand tươi, hậu vị ngọt thanh.', 380000.00, 'https://loremflickr.com/600/400/new-zealand,cherry,fruit', 1),
+  (NOW(6), NOW(6), 1, 3, 'Việt quất tươi', 'Việt quất tươi hợp ăn kèm sữa chua và ngũ cốc.', 260000.00, 'https://loremflickr.com/600/400/blueberry,fruit', 1),
+  (NOW(6), NOW(6), 1, 3, 'Phúc bồn tử đỏ', 'Phúc bồn tử chua ngọt, thơm nhẹ, dùng làm bánh.', 290000.00, 'https://loremflickr.com/600/400/raspberry,fruit', 1),
+  (NOW(6), NOW(6), 1, 3, 'Dâu tằm Đà Lạt', 'Dâu tằm chín mọng, vị chua ngọt tự nhiên.', 160000.00, 'https://loremflickr.com/600/400/mulberry,fruit', 1),
+  (NOW(6), NOW(6), 1, 4, 'Thanh long ruột đỏ', 'Thanh long ruột đỏ ngọt dịu, màu đẹp.', 36000.00, 'https://loremflickr.com/600/400/dragonfruit,fruit', 1),
+  (NOW(6), NOW(6), 1, 4, 'Thanh long ruột trắng', 'Thanh long ruột trắng thanh mát, dễ ăn.', 28000.00, 'https://loremflickr.com/600/400/white,dragonfruit,fruit', 1),
+  (NOW(6), NOW(6), 1, 4, 'Măng cụt Thái Lan', 'Măng cụt vỏ tím, múi trắng, ngọt thơm.', 95000.00, 'https://loremflickr.com/600/400/mangosteen,fruit', 1),
+  (NOW(6), NOW(6), 1, 4, 'Sầu riêng Ri6 tách múi', 'Sầu riêng Ri6 cơm vàng, béo thơm, đóng hộp tiện lợi.', 210000.00, 'https://loremflickr.com/600/400/durian,fruit', 1),
+  (NOW(6), NOW(6), 1, 4, 'Mít Thái bóc sẵn', 'Mít Thái múi dày, giòn ngọt, đã tách hạt.', 70000.00, 'https://loremflickr.com/600/400/jackfruit,fruit', 1),
+  (NOW(6), NOW(6), 1, 4, 'Ổi lê Đài Loan', 'Ổi lê giòn, ít hạt, vị ngọt nhẹ.', 30000.00, 'https://loremflickr.com/600/400/guava,fruit', 1),
+  (NOW(6), NOW(6), 1, 4, 'Mận An Phước', 'Mận đỏ mọng nước, chua ngọt, ăn lạnh rất ngon.', 42000.00, 'https://loremflickr.com/600/400/plum,fruit', 1),
+  (NOW(6), NOW(6), 1, 4, 'Chôm chôm nhãn', 'Chôm chôm nhãn cơm dày, tróc hạt, ngọt.', 38000.00, 'https://loremflickr.com/600/400/rambutan,fruit', 1),
+  (NOW(6), NOW(6), 1, 4, 'Nhãn xuồng cơm vàng', 'Nhãn xuồng cơm vàng dày cùi, ngọt thơm.', 65000.00, 'https://loremflickr.com/600/400/longan,fruit', 1),
+  (NOW(6), NOW(6), 1, 4, 'Vải thiều Lục Ngạn', 'Vải thiều chín đỏ, cùi dày, ngọt đậm.', 58000.00, 'https://loremflickr.com/600/400/lychee,fruit', 1);
 
 -- --- Inventory: one row per product above (must match the products'
 --     insert order/ids — using product_name to look the id back up so
 --     this doesn't depend on assumed auto-increment values) -----------
-INSERT INTO inventory (created_at, updated_at, product_id, stock_quantity)
-SELECT NOW(6), NOW(6), id, 100 FROM product WHERE product_name = 'Táo Envy Mỹ';
-INSERT INTO inventory (created_at, updated_at, product_id, stock_quantity)
-SELECT NOW(6), NOW(6), id, 100 FROM product WHERE product_name = 'Cam sành Hà Giang';
-INSERT INTO inventory (created_at, updated_at, product_id, stock_quantity)
-SELECT NOW(6), NOW(6), id, 100 FROM product WHERE product_name = 'Xoài cát Hòa Lộc';
-INSERT INTO inventory (created_at, updated_at, product_id, stock_quantity)
-SELECT NOW(6), NOW(6), id, 100 FROM product WHERE product_name = 'Nho xanh không hạt';
-INSERT INTO inventory (created_at, updated_at, product_id, stock_quantity)
-SELECT NOW(6), NOW(6), id, 3 FROM product WHERE product_name = 'Dâu tây Đà Lạt'; -- deliberately low, to test "hết hàng"/insufficient-stock
-INSERT INTO inventory (created_at, updated_at, product_id, stock_quantity)
-SELECT NOW(6), NOW(6), id, 100 FROM product WHERE product_name = 'Chuối già Nam Mỹ';
-INSERT INTO inventory (created_at, updated_at, product_id, stock_quantity)
-SELECT NOW(6), NOW(6), id, 50 FROM product WHERE product_name = 'Lê Hàn Quốc (ngừng bán)';
+INSERT IGNORE INTO inventory (created_at, updated_at, product_id, stock_quantity)
+SELECT NOW(6), NOW(6), id, 100000 FROM product WHERE product_name = 'Táo Envy Mỹ';
+INSERT IGNORE INTO inventory (created_at, updated_at, product_id, stock_quantity)
+SELECT NOW(6), NOW(6), id, 100000 FROM product WHERE product_name = 'Cam sành Hà Giang';
+INSERT IGNORE INTO inventory (created_at, updated_at, product_id, stock_quantity)
+SELECT NOW(6), NOW(6), id, 100000 FROM product WHERE product_name = 'Xoài cát Hòa Lộc';
+INSERT IGNORE INTO inventory (created_at, updated_at, product_id, stock_quantity)
+SELECT NOW(6), NOW(6), id, 100000 FROM product WHERE product_name = 'Nho xanh không hạt';
+INSERT IGNORE INTO inventory (created_at, updated_at, product_id, stock_quantity)
+SELECT NOW(6), NOW(6), id, 3000 FROM product WHERE product_name = 'Dâu tây Đà Lạt'; -- deliberately low, to test "hết hàng"/insufficient-stock
+INSERT IGNORE INTO inventory (created_at, updated_at, product_id, stock_quantity)
+SELECT NOW(6), NOW(6), id, 100000 FROM product WHERE product_name = 'Chuối già Nam Mỹ';
+INSERT IGNORE INTO inventory (created_at, updated_at, product_id, stock_quantity)
+SELECT NOW(6), NOW(6), id, 50000 FROM product WHERE product_name = 'Lê Hàn Quốc (ngừng bán)';
+
+INSERT IGNORE INTO inventory (created_at, updated_at, product_id, stock_quantity)
+SELECT NOW(6), NOW(6), p.id, 100000
+FROM product p
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM inventory i
+  WHERE i.product_id = p.id
+);
 
 -- Orders/cart_items/payment are intentionally NOT seeded here — the most
 -- useful way to test those is by actually going through the app's own
@@ -284,13 +380,3 @@ SELECT NOW(6), NOW(6), id, 50 FROM product WHERE product_name = 'Lê Hàn Quốc
 --        (SELECT COUNT(*) FROM shop) AS shops,
 --        (SELECT COUNT(*) FROM product) AS products,
 --        (SELECT COUNT(*) FROM inventory) AS inventory_rows;
--- --- Shops -----------------------------------------------------------
-INSERT INTO shop (created_at, updated_at, owner_id, shop_name, shop_address, shop_description, status)
-VALUES (
-  NOW(6), NOW(6),
-  (SELECT id FROM users WHERE email = 'manager@freshmart.test'),
-  'FreshMart Main Shop',
-  '123 Nguyen Trai, District 1, Ho Chi Minh City',
-  'Fresh fruit shop for local and imported produce.',
-  'ACTIVE'
-);

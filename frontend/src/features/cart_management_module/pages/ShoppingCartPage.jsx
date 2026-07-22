@@ -4,6 +4,7 @@ import { Container, Table, Button, Alert, Spinner, Form, Badge } from "react-boo
 import { viewCart, updateCartItemQuantity, removeCartItem } from "../services/cartService";
 import { getProduct } from "../../product_management_module/services/productService";
 import { useCart } from "../../../app/context";
+import { calculateLineTotal, formatPackage, formatUnitPrice, getPackageCount } from "../../../common/utils/measure";
 
 /**
  * Shopping Cart page — UC12 (View Shopping Cart) + UC13 (Update Cart Item
@@ -51,9 +52,11 @@ export default function ShoppingCartPage() {
     }
   }
 
-  async function handleQuantityChange(cartItemId, quantity) {
+  async function handleQuantityChange(item, packageCount) {
     setError("");
     try {
+      const quantity = Math.max(0, Math.floor(Number(packageCount)));
+      const cartItemId = item.cartItemId;
       const updated = await updateCartItemQuantity(cartItemId, quantity);
       if (updated === null) {
         // Backend forwarded to remove (quantity reached 0) — UC13 alt flow.
@@ -83,7 +86,7 @@ export default function ShoppingCartPage() {
   }
 
   const total = items.reduce(
-    (sum, item) => sum + (item.product?.price ?? 0) * item.quantity,
+    (sum, item) => sum + calculateLineTotal(item.product, item.quantity),
     0
   );
   const hasInactiveItem = items.some((item) => item.product && item.product.isActive === false);
@@ -152,19 +155,21 @@ export default function ShoppingCartPage() {
                         </Badge>
                       )}
                     </td>
-                    <td>{Number(item.product?.price ?? 0).toLocaleString("vi-VN")} đ</td>
+                    <td>{formatUnitPrice(item.product)}</td>
                     <td>
                       <Form.Control
                         type="number"
                         min={0}
-                        value={item.quantity}
+                        step={1}
+                        value={getPackageCount(item.product, item.quantity)}
                         onChange={(e) =>
-                          handleQuantityChange(item.cartItemId, Number(e.target.value))
+                          handleQuantityChange(item, e.target.value)
                         }
                       />
+                      <span className="text-muted small">x {formatPackage(item.product)}</span>
                     </td>
                     <td>
-                      {Number((item.product?.price ?? 0) * item.quantity).toLocaleString("vi-VN")} đ
+                      {Number(calculateLineTotal(item.product, item.quantity)).toLocaleString("vi-VN")} đ
                     </td>
                     <td>
                       <Button
